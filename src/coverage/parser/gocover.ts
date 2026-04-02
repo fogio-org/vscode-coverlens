@@ -1,6 +1,7 @@
 import * as fs from 'fs';
+import * as path from 'path';
 import { FileCoverage, CoverageMap } from '../types';
-import { resolveFilePath } from '../../util/paths';
+import { normalizePath } from '../../util/paths';
 
 /**
  * Parse Go coverage profile (coverage.out) format.
@@ -11,6 +12,9 @@ import { resolveFilePath } from '../../util/paths';
 export async function parseGoCover(filePath: string, workspaceRoot: string): Promise<CoverageMap> {
   const content = await fs.promises.readFile(filePath, 'utf8');
   const map: CoverageMap = new Map();
+
+  // Read module name from go.mod to strip module prefix from coverage paths
+  const moduleName = readModuleName(workspaceRoot);
 
   for (const line of content.split('\n')) {
     const trimmed = line.trim();
@@ -25,8 +29,8 @@ export async function parseGoCover(filePath: string, workspaceRoot: string): Pro
     const endLine = parseInt(endStr, 10);
     const count = parseInt(countStr, 10);
 
-    // Go coverage paths are module paths — resolve relative to workspace
-    const absPath = resolveFilePath(rawFile, workspaceRoot);
+    // Strip module prefix to get a workspace-relative path
+    const absPath = resolveGoPath(rawFile, moduleName, workspaceRoot);
 
     let fc = map.get(absPath);
     if (!fc) {
@@ -58,4 +62,31 @@ export async function parseGoCover(filePath: string, workspaceRoot: string): Pro
   }
 
   return map;
+}
+
+/** Read module name from go.mod (e.g. "github.com/fogio-org/food-api") */
+function readModuleName(workspaceRoot: string): string {
+  try {
+    const goModPath = path.join(workspaceRoot, 'go.mod');
+    const content = fs.readFileSync(goModPath, 'utf8');
+    const match = content.match(/^module\s+(\S+)/m);
+    if (match) return match[1];
+  } catch {
+    // go.mod not found or unreadable
+  }
+  return '';
+}
+
+/** Convert Go module path to absolute filesystem path */
+function resolveGoPath(goPath: string, moduleName: string, workspaceRoot: string): string {
+  let relativePath = goPath;
+
+  // Strip module prefix: "github.com/user/pkg/internal/foo.go" → "internal/foo.go"
+  if (moduleName && goPath.startsWith(moduleName)) {
+    relativePath = goPath.slice(moduleName.length);
+    // Remove leading slash
+    if (relativePath.startsWith('/')) relativePath = relativePath.slice(1);
+  }
+
+  return normalizePath(path.resolve(workspaceRoot, relativePath));
 }
