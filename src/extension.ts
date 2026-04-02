@@ -7,10 +7,10 @@ import { loadCoverage } from './coverage/loader';
 import { getSettings } from './config/settings';
 import { getWorkspaceRoots } from './config/monorepo';
 import { getChangedLines } from './diffCoverage/gitDiff';
-import { filterCoverageToDiff } from './diffCoverage/filter';
 import { saveSnapshot, loadLatestSnapshot } from './history/store';
 import { computeDelta } from './history/trend';
 import { Logger } from './util/logger';
+import { normalizePath } from './util/paths';
 import { CoverageMap, CoverageSnapshot } from './coverage/types';
 import * as path from 'path';
 
@@ -27,7 +27,7 @@ export function activate(context: vscode.ExtensionContext): void {
   log.info('CoverLens activating...');
 
   const settings = getSettings();
-  decorator = new CoverageDecorator();
+  decorator = new CoverageDecorator(context);
   statusBar = new CoverageStatusBar();
   treeProvider = new CoverageTreeProvider();
 
@@ -41,13 +41,10 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('coverlens.toggle', () => {
-      const enabled = decorator.toggle();
+      decorator.toggle();
       vscode.window.showInformationMessage(
-        `CoverLens: Coverage display ${enabled ? 'enabled' : 'disabled'}`,
+        `CoverLens: Coverage display ${decorator.isEnabled ? 'enabled' : 'disabled'}`,
       );
-      if (enabled && currentCoverage) {
-        applyDecorations();
-      }
     }),
 
     vscode.commands.registerCommand('coverlens.toggleDiff', () => {
@@ -55,9 +52,7 @@ export function activate(context: vscode.ExtensionContext): void {
       vscode.window.showInformationMessage(
         `CoverLens: Diff mode ${diffModeActive ? 'enabled' : 'disabled'}`,
       );
-      if (currentCoverage) {
-        applyDecorations();
-      }
+      updateDiffFilter();
     }),
 
     vscode.commands.registerCommand('coverlens.runWithCoverage', async () => {
@@ -99,12 +94,6 @@ export function activate(context: vscode.ExtensionContext): void {
       vscode.window.showInformationMessage('CoverLens: History cleared');
     }),
 
-    vscode.window.onDidChangeActiveTextEditor(() => {
-      if (currentCoverage) {
-        applyDecorations();
-      }
-    }),
-
     treeView,
     { dispose: () => decorator.dispose() },
     { dispose: () => statusBar.dispose() },
@@ -114,7 +103,7 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   if (settings.enabled) {
-    decorator.toggle(); // enable decorations
+    decorator.enable();
   }
 
   setupWatcher(settings.coverageFiles);
@@ -164,40 +153,37 @@ async function refreshCoverage(): Promise<void> {
 
     statusBar.update(currentCoverage);
     treeProvider.update(currentCoverage);
-    applyDecorations();
+    decorator.setCoverage(currentCoverage);
+    updateDiffFilter();
   } else {
     statusBar.update(new Map());
   }
 }
 
-function applyDecorations(): void {
-  if (!currentCoverage) {
+function updateDiffFilter(): void {
+  if (!diffModeActive) {
+    decorator.setDiffFilter(null);
     return;
   }
 
-  const editor = vscode.window.activeTextEditor;
-  if (!editor) {
+  const settings = getSettings();
+  const roots = getWorkspaceRoots();
+  if (roots.length === 0) {
     return;
   }
 
-  let files = currentCoverage;
-
-  if (diffModeActive) {
-    const settings = getSettings();
-    const roots = getWorkspaceRoots();
-    if (roots.length > 0) {
-      const changedLines = getChangedLines(roots[0], settings.diffBase);
-      files = filterCoverageToDiff(files, changedLines);
+  const changedLines = getChangedLines(roots[0], settings.diffBase);
+  const diffMap = new Map<string, Set<number>>();
+  for (const dl of changedLines) {
+    const normalized = normalizePath(path.resolve(roots[0], dl.filePath));
+    let set = diffMap.get(normalized);
+    if (!set) {
+      set = new Set();
+      diffMap.set(normalized, set);
     }
+    set.add(dl.lineNumber);
   }
-
-  const filePath = editor.document.uri.fsPath;
-  const coverage = files.get(filePath);
-  if (coverage) {
-    decorator.apply(editor, coverage);
-  } else {
-    decorator.clearAll();
-  }
+  decorator.setDiffFilter(diffMap);
 }
 
 function setupWatcher(patterns: string[]): void {
