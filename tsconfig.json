@@ -14,5 +14,5 @@
     "declaration": true,
     "declarationMap": true
   },
-  "exclude": ["node_modules", "dist", "out", ".coverlens"]
+  "exclude": ["node_modules", "dist", "out", ".coverlens", "src/__tests__", "src/__mocks__"]
 }
