@@ -2,38 +2,197 @@
   "name": "coverlens",
   "displayName": "CoverLens",
   "description": "Three-state coverage lens with diff mode and monorepo support",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "publisher": "coverlens",
-  "engines": {
-    "vscode": "^1.85.0"
-  },
-  "categories": [
-    "Testing"
-  ],
-  "activationEvents": [
-    "onStartupFinished"
-  ],
+  "icon": "assets/icon.png",
+  "engines": { "vscode": "^1.88.0" },
+  "categories": ["Testing"],
+  "keywords": ["coverage", "lcov", "test", "monorepo", "diff"],
+  "activationEvents": ["onStartupFinished"],
   "main": "./dist/extension.js",
+
   "contributes": {
     "commands": [
       {
-        "command": "coverlens.toggleCoverage",
-        "title": "CoverLens: Toggle Coverage Display"
+        "command": "coverlens.toggle",
+        "title": "CoverLens: Toggle Coverage",
+        "icon": "$(eye)"
       },
       {
-        "command": "coverlens.loadCoverage",
-        "title": "CoverLens: Load Coverage File"
+        "command": "coverlens.toggleDiff",
+        "title": "CoverLens: Toggle Diff Mode (changed lines only)",
+        "icon": "$(git-pull-request)"
+      },
+      {
+        "command": "coverlens.runWithCoverage",
+        "title": "CoverLens: Run Tests with Coverage",
+        "icon": "$(play)"
+      },
+      {
+        "command": "coverlens.refresh",
+        "title": "CoverLens: Reload Coverage Files",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "coverlens.showHistory",
+        "title": "CoverLens: Show Coverage History",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "coverlens.clearHistory",
+        "title": "CoverLens: Clear Coverage History"
       }
-    ]
+    ],
+
+    "views": {
+      "test": [
+        {
+          "id": "coverlens.tree",
+          "name": "Coverage",
+          "icon": "$(shield)",
+          "contextualTitle": "CoverLens"
+        }
+      ]
+    },
+
+    "menus": {
+      "view/title": [
+        {
+          "command": "coverlens.toggle",
+          "when": "view == coverlens.tree",
+          "group": "navigation"
+        },
+        {
+          "command": "coverlens.toggleDiff",
+          "when": "view == coverlens.tree",
+          "group": "navigation"
+        },
+        {
+          "command": "coverlens.runWithCoverage",
+          "when": "view == coverlens.tree",
+          "group": "navigation"
+        },
+        {
+          "command": "coverlens.refresh",
+          "when": "view == coverlens.tree",
+          "group": "navigation"
+        }
+      ]
+    },
+
+    "configuration": {
+      "title": "CoverLens",
+      "properties": {
+        "coverlens.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable coverage decorations on startup"
+        },
+        "coverlens.coverageFiles": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [
+            "**/lcov.info",
+            "**/coverage.xml",
+            "**/cov.xml",
+            "**/coverage.cobertura.xml",
+            "**/jacoco.xml",
+            "**/clover.xml"
+          ],
+          "description": "Glob patterns to find coverage files. Supports multiple files for monorepos."
+        },
+        "coverlens.excludePatterns": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["**/node_modules/**", "**/.venv/**", "**/vendor/**", "**/dist/**"],
+          "description": "Glob patterns to exclude when searching for coverage files"
+        },
+        "coverlens.colors.covered": {
+          "type": "string",
+          "default": "",
+          "description": "Color for covered lines (leave empty to use theme default green)"
+        },
+        "coverlens.colors.partial": {
+          "type": "string",
+          "default": "",
+          "description": "Color for partially covered branch lines (leave empty to use theme default yellow)"
+        },
+        "coverlens.colors.uncovered": {
+          "type": "string",
+          "default": "",
+          "description": "Color for uncovered lines (leave empty to use theme default red)"
+        },
+        "coverlens.decorationStyle": {
+          "type": "string",
+          "enum": ["gutter", "line", "both"],
+          "default": "line",
+          "description": "How to show coverage: 'line' = background highlight (no debugger conflict), 'gutter' = gutter icons, 'both'"
+        },
+        "coverlens.diffMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show coverage only for lines changed vs the base branch (git diff)"
+        },
+        "coverlens.diffBase": {
+          "type": "string",
+          "default": "HEAD",
+          "description": "Base ref for diff mode (e.g. 'main', 'origin/main', 'HEAD~1')"
+        },
+        "coverlens.thresholds.low": {
+          "type": "number",
+          "default": 50,
+          "description": "Coverage % below which the file is marked red in the tree"
+        },
+        "coverlens.thresholds.medium": {
+          "type": "number",
+          "default": 80,
+          "description": "Coverage % below which the file is marked yellow in the tree"
+        },
+        "coverlens.testRunner": {
+          "type": "string",
+          "enum": ["auto", "jest", "vitest", "pytest", "go", "cargo", "dotnet", "custom"],
+          "default": "auto",
+          "description": "Test runner for 'Run Tests with Coverage' command"
+        },
+        "coverlens.testRunner.customCommand": {
+          "type": "string",
+          "default": "",
+          "description": "Custom shell command to run tests with coverage (used when testRunner = 'custom')"
+        },
+        "coverlens.monorepo.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically detect and aggregate coverage from multiple packages in a monorepo"
+        },
+        "coverlens.monorepo.packages": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Override monorepo package roots (leave empty for auto-detection from package.json/pnpm-workspace.yaml)"
+        },
+        "coverlens.history.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Store local coverage history in .coverlens/ for trend tracking"
+        },
+        "coverlens.history.maxSnapshots": {
+          "type": "number",
+          "default": 50,
+          "description": "Maximum number of historical snapshots to keep"
+        }
+      }
+    }
   },
+
   "scripts": {
     "vscode:prepublish": "npm run package",
     "compile": "webpack",
     "watch": "webpack --watch",
     "package": "webpack --mode production --devtool hidden-source-map",
-    "lint": "eslint src",
-    "test": "jest"
+    "test": "jest",
+    "lint": "eslint src --ext ts"
   },
+
   "dependencies": {
     "chokidar": "^5.0.0",
     "fast-glob": "^3.3.3",

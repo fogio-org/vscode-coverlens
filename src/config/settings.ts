@@ -1,20 +1,56 @@
 import * as vscode from 'vscode';
 
 export interface CoverLensSettings {
-  coveragePaths: string[];
-  autoWatch: boolean;
-  diffCoverageEnabled: boolean;
+  enabled: boolean;
+  coverageFiles: string[];
+  excludePatterns: string[];
+  colorCovered: string;
+  colorPartial: string;
+  colorUncovered: string;
+  decorationStyle: 'gutter' | 'line' | 'both';
+  diffMode: boolean;
   diffBase: string;
-  decorationStyle: 'gutter' | 'highlight' | 'both';
+  thresholdLow: number;
+  thresholdMedium: number;
+  testRunner: string;
+  testRunnerCustomCommand: string;
+  monorepoEnabled: boolean;
+  monorepoPackages: string[];
+  historyEnabled: boolean;
+  historyMaxSnapshots: number;
 }
 
 export function getSettings(): CoverLensSettings {
   const config = vscode.workspace.getConfiguration('coverlens');
   return {
-    coveragePaths: config.get<string[]>('coveragePaths', ['coverage/lcov.info', 'coverage/cobertura.xml']),
-    autoWatch: config.get<boolean>('autoWatch', true),
-    diffCoverageEnabled: config.get<boolean>('diffCoverage.enabled', false),
-    diffBase: config.get<string>('diffCoverage.base', 'HEAD'),
-    decorationStyle: config.get<'gutter' | 'highlight' | 'both'>('decorationStyle', 'both'),
+    enabled: config.get<boolean>('enabled', true),
+    coverageFiles: config.get<string[]>('coverageFiles', [
+      '**/lcov.info',
+      '**/coverage.xml',
+      '**/cov.xml',
+      '**/coverage.cobertura.xml',
+      '**/jacoco.xml',
+      '**/clover.xml',
+    ]),
+    excludePatterns: config.get<string[]>('excludePatterns', [
+      '**/node_modules/**',
+      '**/.venv/**',
+      '**/vendor/**',
+      '**/dist/**',
+    ]),
+    colorCovered: config.get<string>('colors.covered', ''),
+    colorPartial: config.get<string>('colors.partial', ''),
+    colorUncovered: config.get<string>('colors.uncovered', ''),
+    decorationStyle: config.get<'gutter' | 'line' | 'both'>('decorationStyle', 'line'),
+    diffMode: config.get<boolean>('diffMode', false),
+    diffBase: config.get<string>('diffBase', 'HEAD'),
+    thresholdLow: config.get<number>('thresholds.low', 50),
+    thresholdMedium: config.get<number>('thresholds.medium', 80),
+    testRunner: config.get<string>('testRunner', 'auto'),
+    testRunnerCustomCommand: config.get<string>('testRunner.customCommand', ''),
+    monorepoEnabled: config.get<boolean>('monorepo.enabled', true),
+    monorepoPackages: config.get<string[]>('monorepo.packages', []),
+    historyEnabled: config.get<boolean>('history.enabled', true),
+    historyMaxSnapshots: config.get<number>('history.maxSnapshots', 50),
   };
 }
