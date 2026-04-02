@@ -1,192 +1,168 @@
 import * as vscode from 'vscode';
-import { CoverageDecorator } from './decorations/decorator';
-import { CoverageStatusBar } from './panel/statusBar';
-import { CoverageTreeProvider } from './panel/coverageTree';
-import { CoverageWatcher } from './coverage/watcher';
 import { loadCoverage } from './coverage/loader';
-import { getSettings } from './config/settings';
-import { getWorkspaceRoots } from './config/monorepo';
+import { CoverageDecorator } from './decorations/decorator';
+import { CoverageTreeProvider } from './panel/coverageTree';
+import { CoverageStatusBar } from './panel/statusBar';
+import { CoverageWatcher } from './coverage/watcher';
+import { TestRunner } from './runner/testRunner';
+import { HistoryStore } from './history/store';
 import { getChangedLines } from './diffCoverage/gitDiff';
-import { saveSnapshot, loadLatestSnapshot } from './history/store';
-import { computeDelta } from './history/trend';
+import { detectPackages } from './config/monorepo';
 import { Logger } from './util/logger';
-import { CoverageMap, CoverageSnapshot } from './coverage/types';
+import { CoverageMap } from './coverage/types';
 
-let log: Logger;
-let decorator: CoverageDecorator;
-let statusBar: CoverageStatusBar;
-let treeProvider: CoverageTreeProvider;
-let watcher: CoverageWatcher;
-let currentCoverage: CoverageMap | undefined;
-let diffModeActive = false;
+export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
+  const log = new Logger();
+  log.info('CoverLens activating…');
 
-export function activate(context: vscode.ExtensionContext): void {
-  log = new Logger();
-  log.info('CoverLens activating...');
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (!workspaceFolders?.length) {
+    log.warn('No workspace folder open. CoverLens inactive.');
+    return;
+  }
 
-  const settings = getSettings();
-  const workspaceRoots = getWorkspaceRoots();
-  const primaryRoot = workspaceRoots[0] ?? '';
+  const workspaceRoot = workspaceFolders[0].uri.fsPath;
+  const cfg = () => vscode.workspace.getConfiguration('coverlens');
 
-  decorator = new CoverageDecorator(context);
-  statusBar = new CoverageStatusBar();
-  treeProvider = new CoverageTreeProvider(primaryRoot);
-  watcher = new CoverageWatcher();
+  const decorator  = new CoverageDecorator(ctx);
+  const treeProvider = new CoverageTreeProvider(workspaceRoot);
+  const statusBar  = new CoverageStatusBar();
+  const history    = new HistoryStore(workspaceRoot);
+  const watcher    = new CoverageWatcher();
+  const runner     = new TestRunner(workspaceRoot, log);
 
+  let coverageMap: CoverageMap = new Map();
+  let diffMode = cfg().get<boolean>('diffMode', false);
+
+  // Register tree view
   const treeView = vscode.window.createTreeView('coverlens.tree', {
     treeDataProvider: treeProvider,
+    showCollapseAll: true
   });
 
-  context.subscriptions.push(
+  /** Core reload function — called by watcher and by commands */
+  async function reload(): Promise<void> {
+    statusBar.setLoading();
+    try {
+      const globs   = cfg().get<string[]>('coverageFiles', ['**/lcov.info']);
+      const exclude = cfg().get<string[]>('excludePatterns', ['**/node_modules/**']);
+
+      // Monorepo: collect coverage from all packages
+      const monorepoEnabled = cfg().get<boolean>('monorepo.enabled', true);
+      let packages: string[] = cfg().get<string[]>('monorepo.packages', []);
+      if (monorepoEnabled && !packages.length) {
+        packages = await detectPackages(workspaceRoot);
+      }
+
+      const merged: CoverageMap = new Map();
+      for (const pkg of packages) {
+        const partial = await loadCoverage(globs, exclude, pkg, log);
+        for (const [k, v] of partial) merged.set(k, v);
+      }
+
+      coverageMap = merged;
+      decorator.setCoverage(coverageMap);
+      treeProvider.setCoverage(coverageMap);
+      statusBar.update(coverageMap, decorator.isEnabled);
+
+      if (cfg().get<boolean>('history.enabled', true)) {
+        history.save(coverageMap);
+        const delta = history.delta();
+        if (delta) {
+          const sign = (n: number) => n >= 0 ? '+' : '';
+          log.info(`Coverage delta: lines ${sign(delta.linePercent)}${delta.linePercent}%, branches ${sign(delta.branchPercent)}${delta.branchPercent}%`);
+        }
+      }
+
+      // Reapply diff filter if active
+      if (diffMode) await applyDiffFilter();
+
+    } catch (err) {
+      log.error(`Reload failed: ${err}`);
+      statusBar.setNoCoverage();
+    }
+  }
+
+  async function applyDiffFilter(): Promise<void> {
+    const base = cfg().get<string>('diffBase', 'HEAD');
+    try {
+      const changed = await getChangedLines(workspaceRoot, base);
+      decorator.setDiffFilter(changed);
+      statusBar.setDiffMode(true);
+    } catch (err) {
+      log.warn(`git diff failed (not a git repo?): ${err}`);
+      decorator.setDiffFilter(null);
+    }
+  }
+
+  // Commands
+  ctx.subscriptions.push(
     vscode.commands.registerCommand('coverlens.toggle', () => {
       decorator.toggle();
-      const enabled = decorator.isEnabled;
-      statusBar.update(currentCoverage ?? new Map(), enabled);
-      vscode.window.showInformationMessage(
-        `CoverLens: Coverage display ${enabled ? 'enabled' : 'disabled'}`,
-      );
+      statusBar.update(coverageMap, decorator.isEnabled);
     }),
 
     vscode.commands.registerCommand('coverlens.toggleDiff', async () => {
-      diffModeActive = !diffModeActive;
-      statusBar.setDiffMode(diffModeActive);
-      vscode.window.showInformationMessage(
-        `CoverLens: Diff mode ${diffModeActive ? 'enabled' : 'disabled'}`,
-      );
-      await updateDiffFilter();
+      diffMode = !diffMode;
+      if (diffMode) {
+        await applyDiffFilter();
+      } else {
+        decorator.setDiffFilter(null);
+        statusBar.setDiffMode(false);
+      }
     }),
+
+    vscode.commands.registerCommand('coverlens.refresh', () => reload()),
 
     vscode.commands.registerCommand('coverlens.runWithCoverage', async () => {
-      vscode.window.showInformationMessage('CoverLens: Running tests with coverage...');
-      // Test runner integration will be expanded in a future prompt
-    }),
-
-    vscode.commands.registerCommand('coverlens.refresh', async () => {
-      await refreshCoverage();
-      vscode.window.showInformationMessage('CoverLens: Coverage reloaded');
+      await runner.run();
+      await reload();
     }),
 
     vscode.commands.registerCommand('coverlens.showHistory', () => {
-      if (!primaryRoot) return;
-      const previous = loadLatestSnapshot(primaryRoot, log);
-      if (!previous) {
-        vscode.window.showInformationMessage('CoverLens: No coverage history found');
+      const snaps = history.load();
+      if (!snaps.length) {
+        vscode.window.showInformationMessage('CoverLens: no history yet. Run tests first.');
         return;
       }
-      if (currentCoverage) {
-        const currentSnapshot: CoverageSnapshot = {
-          timestamp: Date.now(),
-          totalLinePercent: computeTotalPercent(currentCoverage),
-          totalBranchPercent: 0,
-          files: {},
-        };
-        const delta = computeDelta(previous, currentSnapshot);
-        const sign = delta.delta >= 0 ? '+' : '';
-        vscode.window.showInformationMessage(
-          `CoverLens: Coverage ${sign}${delta.delta}% (${delta.currentPercent}% current)`,
-        );
-      }
+      const latest = snaps[snaps.length - 1];
+      const delta = history.delta();
+      const deltaStr = delta
+        ? ` (${delta.linePercent >= 0 ? '+' : ''}${delta.linePercent}% vs previous)`
+        : '';
+      vscode.window.showInformationMessage(
+        `CoverLens history: ${snaps.length} snapshots. Latest: ${latest.totalLinePercent}%${deltaStr}`
+      );
     }),
 
     vscode.commands.registerCommand('coverlens.clearHistory', () => {
-      vscode.window.showInformationMessage('CoverLens: History cleared');
-    }),
-
-    treeView,
-    { dispose: () => decorator.dispose() },
-    { dispose: () => statusBar.dispose() },
-    { dispose: () => treeProvider.dispose() },
-    { dispose: () => watcher.stop() },
-    { dispose: () => log.dispose() },
+      const historyDir = require('path').join(workspaceRoot, '.coverlens');
+      require('fs').rmSync(historyDir, { recursive: true, force: true });
+      vscode.window.showInformationMessage('CoverLens: history cleared.');
+    })
   );
 
-  if (settings.enabled) {
+  // File watcher
+  const globs   = cfg().get<string[]>('coverageFiles', ['**/lcov.info']);
+  const exclude = cfg().get<string[]>('excludePatterns', ['**/node_modules/**']);
+  await watcher.start(globs, exclude, workspaceRoot, reload);
+
+  // Register disposables
+  ctx.subscriptions.push(
+    decorator,
+    statusBar,
+    treeView,
+    { dispose: () => watcher.stop() },
+    { dispose: () => log.dispose() }
+  );
+
+  // Initial load
+  if (cfg().get<boolean>('enabled', true)) {
     decorator.enable();
+    await reload();
   }
 
-  // Start file watcher and initial load
-  if (primaryRoot) {
-    watcher.start(
-      settings.coverageFiles,
-      settings.excludePatterns,
-      primaryRoot,
-      () => refreshCoverage(),
-    );
-  }
-  refreshCoverage();
-
-  log.info('CoverLens activated');
+  log.info('CoverLens activated.');
 }
 
-function computeTotalPercent(data: CoverageMap): number {
-  let total = 0;
-  let covered = 0;
-  for (const fc of data.values()) {
-    total += fc.metrics.totalLines;
-    covered += fc.metrics.coveredLines;
-  }
-  return total > 0 ? Math.round((covered / total) * 100) : 100;
-}
-
-async function refreshCoverage(): Promise<void> {
-  const settings = getSettings();
-  const workspaceRoots = getWorkspaceRoots();
-
-  if (workspaceRoots.length === 0) {
-    return;
-  }
-
-  const merged: CoverageMap = new Map();
-
-  for (const root of workspaceRoots) {
-    const partial = await loadCoverage(
-      settings.coverageFiles,
-      settings.excludePatterns,
-      root,
-      log,
-    );
-    for (const [k, v] of partial) {
-      merged.set(k, v);
-    }
-  }
-
-  if (merged.size > 0) {
-    currentCoverage = merged;
-
-    if (settings.historyEnabled) {
-      saveSnapshot(workspaceRoots[0], currentCoverage, log);
-    }
-
-    statusBar.update(currentCoverage, decorator.isEnabled);
-    treeProvider.setCoverage(currentCoverage);
-    decorator.setCoverage(currentCoverage);
-    await updateDiffFilter();
-  } else {
-    statusBar.setNoCoverage();
-  }
-}
-
-async function updateDiffFilter(): Promise<void> {
-  if (!diffModeActive) {
-    decorator.setDiffFilter(null);
-    return;
-  }
-
-  const settings = getSettings();
-  const roots = getWorkspaceRoots();
-  if (roots.length === 0) {
-    return;
-  }
-
-  try {
-    const diffMap = await getChangedLines(roots[0], settings.diffBase);
-    decorator.setDiffFilter(diffMap);
-  } catch (err) {
-    log.error(`Failed to get git diff: ${err}`);
-    decorator.setDiffFilter(null);
-  }
-}
-
-export function deactivate(): void {
-  log?.info('CoverLens deactivated');
-}
+export function deactivate(): void {}

@@ -1,45 +1,60 @@
-export interface TestPreset {
+export interface RunnerPreset {
   name: string;
+  /** Shell command that runs tests and outputs a coverage file */
   command: string;
-  coverageArgs: string[];
-  coverageOutput: string;
+  /** Expected coverage output glob (relative to workspace root) */
+  outputGlob: string;
 }
 
-export const presets: TestPreset[] = [
-  {
-    name: 'jest',
-    command: 'npx jest',
-    coverageArgs: ['--coverage', '--coverageReporters=lcov'],
-    coverageOutput: 'coverage/lcov.info',
+export const PRESETS: Record<string, RunnerPreset> = {
+  jest: {
+    name: 'Jest',
+    command: 'npx jest --coverage --coverageReporters=lcov',
+    outputGlob: 'coverage/lcov.info'
   },
-  {
-    name: 'vitest',
-    command: 'npx vitest run',
-    coverageArgs: ['--coverage'],
-    coverageOutput: 'coverage/lcov.info',
+  vitest: {
+    name: 'Vitest',
+    command: 'npx vitest run --coverage --coverage.reporter=lcov',
+    outputGlob: 'coverage/lcov.info'
   },
-  {
+  pytest: {
     name: 'pytest',
-    command: 'pytest',
-    coverageArgs: ['--cov', '--cov-report=xml:coverage.xml'],
-    coverageOutput: 'coverage.xml',
+    command: 'python -m pytest --cov=. --cov-report=lcov:lcov.info',
+    outputGlob: 'lcov.info'
   },
-  {
-    name: 'go',
-    command: 'go test',
-    coverageArgs: ['-coverprofile=coverage.out', './...'],
-    coverageOutput: 'coverage.out',
+  go: {
+    name: 'Go test',
+    command: 'go test ./... -coverprofile=coverage.out && gocov convert coverage.out | gocov-xml > coverage.xml',
+    outputGlob: 'coverage.xml'
   },
-  {
-    name: 'cargo',
-    command: 'cargo tarpaulin',
-    coverageArgs: ['--out', 'Lcov'],
-    coverageOutput: 'lcov.info',
+  cargo: {
+    name: 'Cargo (tarpaulin)',
+    command: 'cargo tarpaulin --out Lcov --output-dir .',
+    outputGlob: 'lcov.info'
   },
-];
+  dotnet: {
+    name: '.NET (coverlet)',
+    command: 'dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput=./lcov.info',
+    outputGlob: 'lcov.info'
+  }
+};
 
-export function detectPreset(workspaceRoot: string): TestPreset | undefined {
-  // Detection would check for package.json (jest/vitest), setup.py/pyproject.toml (pytest), etc.
-  // Stub for now — will be expanded
-  return undefined;
+/** Auto-detect runner from files present in workspaceRoot */
+export async function detectRunner(workspaceRoot: string): Promise<string> {
+  const fs = await import('fs');
+  const join = (await import('path')).join;
+
+  if (fs.existsSync(join(workspaceRoot, 'jest.config.js')) ||
+      fs.existsSync(join(workspaceRoot, 'jest.config.ts'))) return 'jest';
+
+  if (fs.existsSync(join(workspaceRoot, 'vitest.config.ts')) ||
+      fs.existsSync(join(workspaceRoot, 'vitest.config.js'))) return 'vitest';
+
+  if (fs.existsSync(join(workspaceRoot, 'pyproject.toml')) ||
+      fs.existsSync(join(workspaceRoot, 'setup.cfg'))) return 'pytest';
+
+  if (fs.existsSync(join(workspaceRoot, 'go.mod'))) return 'go';
+  if (fs.existsSync(join(workspaceRoot, 'Cargo.toml'))) return 'cargo';
+
+  return 'jest'; // safe default
 }

@@ -1,75 +1,68 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { CoverageMap, CoverageSnapshot } from '../coverage/types';
-import { Logger } from '../util/logger';
 
-const STORE_DIR = '.coverlens';
+export class HistoryStore {
+  private dir: string;
 
-export function getStorePath(workspaceRoot: string): string {
-  return path.join(workspaceRoot, STORE_DIR);
-}
-
-export function saveSnapshot(workspaceRoot: string, data: CoverageMap, log: Logger): string {
-  const storePath = getStorePath(workspaceRoot);
-  if (!fs.existsSync(storePath)) {
-    fs.mkdirSync(storePath, { recursive: true });
+  constructor(workspaceRoot: string) {
+    this.dir = path.join(workspaceRoot, '.coverlens');
+    if (!fs.existsSync(this.dir)) fs.mkdirSync(this.dir, { recursive: true });
   }
 
-  const snapshot = createSnapshot(data);
-  const filename = `snapshot-${snapshot.timestamp}.json`;
-  const filePath = path.join(storePath, filename);
+  save(map: CoverageMap): void {
+    const totalLines   = [...map.values()].reduce((s, f) => s + f.metrics.totalLines, 0);
+    const coveredLines = [...map.values()].reduce((s, f) => s + f.metrics.coveredLines, 0);
+    const totalBranches   = [...map.values()].reduce((s, f) => s + f.metrics.totalBranches, 0);
+    const coveredBranches = [...map.values()].reduce((s, f) => s + f.metrics.coveredBranches, 0);
 
-  fs.writeFileSync(filePath, JSON.stringify(snapshot, null, 2));
-  log.info(`Saved coverage snapshot: ${filename}`);
-  return filePath;
-}
+    const snap: CoverageSnapshot = {
+      timestamp: Date.now(),
+      totalLinePercent:   totalLines   === 0 ? 100 : Math.round(coveredLines   / totalLines   * 100),
+      totalBranchPercent: totalBranches === 0 ? 100 : Math.round(coveredBranches / totalBranches * 100),
+      files: {}
+    };
 
-export function loadLatestSnapshot(workspaceRoot: string, log: Logger): CoverageSnapshot | undefined {
-  const storePath = getStorePath(workspaceRoot);
-  if (!fs.existsSync(storePath)) {
-    return undefined;
-  }
-
-  try {
-    const files = fs.readdirSync(storePath)
-      .filter(f => f.startsWith('snapshot-') && f.endsWith('.json'))
-      .sort()
-      .reverse();
-
-    if (files.length === 0) {
-      return undefined;
+    for (const [p, fc] of map) {
+      snap.files[p] = {
+        linePercent:   fc.metrics.linePercent,
+        branchPercent: fc.metrics.branchPercent
+      };
     }
 
-    const content = fs.readFileSync(path.join(storePath, files[0]), 'utf-8');
-    return JSON.parse(content) as CoverageSnapshot;
-  } catch (error) {
-    log.error(`Failed to load snapshot: ${error}`);
-    return undefined;
+    const file = path.join(this.dir, `snap_${snap.timestamp}.json`);
+    fs.writeFileSync(file, JSON.stringify(snap));
+    this.prune();
   }
-}
 
-function createSnapshot(data: CoverageMap): CoverageSnapshot {
-  let totalLines = 0;
-  let coveredLines = 0;
-  let totalBranches = 0;
-  let coveredBranches = 0;
-  const files: CoverageSnapshot['files'] = {};
+  load(): CoverageSnapshot[] {
+    if (!fs.existsSync(this.dir)) return [];
+    const files = fs.readdirSync(this.dir)
+      .filter(f => f.startsWith('snap_') && f.endsWith('.json'))
+      .sort();
+    return files.map(f => JSON.parse(fs.readFileSync(path.join(this.dir, f), 'utf8')));
+  }
 
-  for (const [filePath, fc] of data) {
-    totalLines += fc.metrics.totalLines;
-    coveredLines += fc.metrics.coveredLines;
-    totalBranches += fc.metrics.totalBranches;
-    coveredBranches += fc.metrics.coveredBranches;
-    files[filePath] = {
-      linePercent: fc.metrics.linePercent,
-      branchPercent: fc.metrics.branchPercent,
+  delta(): { linePercent: number; branchPercent: number } | null {
+    const snaps = this.load();
+    if (snaps.length < 2) return null;
+    const prev = snaps[snaps.length - 2];
+    const curr = snaps[snaps.length - 1];
+    return {
+      linePercent:   curr.totalLinePercent   - prev.totalLinePercent,
+      branchPercent: curr.totalBranchPercent - prev.totalBranchPercent
     };
   }
 
-  return {
-    timestamp: Date.now(),
-    totalLinePercent: totalLines > 0 ? Math.round((coveredLines / totalLines) * 100) : 100,
-    totalBranchPercent: totalBranches > 0 ? Math.round((coveredBranches / totalBranches) * 100) : 100,
-    files,
-  };
+  private prune(): void {
+    const vscode = require('vscode');
+    const cfg = vscode.workspace.getConfiguration('coverlens');
+    const max: number = cfg.get('history.maxSnapshots', 50);
+    const files = fs.readdirSync(this.dir)
+      .filter(f => f.startsWith('snap_') && f.endsWith('.json'))
+      .sort();
+    while (files.length > max) {
+      fs.unlinkSync(path.join(this.dir, files.shift()!));
+    }
+  }
 }

@@ -1,61 +1,60 @@
 import * as vscode from 'vscode';
-import { spawn } from 'child_process';
+import * as cp from 'child_process';
+import { PRESETS, detectRunner } from './presets';
 import { Logger } from '../util/logger';
-import { TestPreset } from './presets';
 
 export class TestRunner {
-  private running = false;
-  private log: Logger;
+  constructor(
+    private readonly workspaceRoot: string,
+    private readonly log: Logger
+  ) {}
 
-  constructor(log: Logger) {
-    this.log = log;
-  }
+  async run(): Promise<void> {
+    const cfg = vscode.workspace.getConfiguration('coverlens');
+    let runnerKey = cfg.get<string>('testRunner', 'auto');
+    const customCmd = cfg.get<string>('testRunner.customCommand', '');
 
-  isRunning(): boolean {
-    return this.running;
-  }
-
-  async run(preset: TestPreset, workspaceRoot: string): Promise<boolean> {
-    if (this.running) {
-      vscode.window.showWarningMessage('CoverLens: A test run is already in progress.');
-      return false;
+    if (runnerKey === 'auto') {
+      runnerKey = await detectRunner(this.workspaceRoot);
+      this.log.info(`Auto-detected runner: ${runnerKey}`);
     }
 
-    this.running = true;
-    const args = [...preset.coverageArgs];
-    const fullCommand = `${preset.command} ${args.join(' ')}`;
-    this.log.info(`Running: ${fullCommand} in ${workspaceRoot}`);
+    let command: string;
+    if (runnerKey === 'custom' && customCmd) {
+      command = customCmd;
+    } else {
+      const preset = PRESETS[runnerKey];
+      if (!preset) {
+        vscode.window.showErrorMessage(`CoverLens: unknown test runner "${runnerKey}"`);
+        return;
+      }
+      command = preset.command;
+    }
 
-    return new Promise<boolean>((resolve) => {
-      const parts = preset.command.split(' ');
-      const proc = spawn(parts[0], [...parts.slice(1), ...args], {
-        cwd: workspaceRoot,
-        shell: true,
-      });
+    this.log.info(`Running: ${command}`);
 
-      proc.stdout?.on('data', (data) => this.log.info(data.toString()));
-      proc.stderr?.on('data', (data) => this.log.info(data.toString()));
+    await vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: 'CoverLens: running tests…',
+      cancellable: true
+    }, async (progress, token) => {
+      return new Promise<void>((resolve, reject) => {
+        const proc = cp.exec(command, { cwd: this.workspaceRoot }, (err, stdout, stderr) => {
+          if (err) {
+            this.log.error(stderr);
+            vscode.window.showErrorMessage(`CoverLens: tests failed. Check Output panel.`);
+            reject(err);
+          } else {
+            this.log.info('Tests completed. Coverage file updated.');
+            resolve();
+          }
+        });
 
-      proc.on('close', (code) => {
-        this.running = false;
-        if (code === 0) {
-          this.log.info('Test run completed successfully');
-          resolve(true);
-        } else {
-          this.log.error(`Test run failed with exit code ${code}`);
-          resolve(false);
-        }
-      });
-
-      proc.on('error', (error) => {
-        this.running = false;
-        this.log.error(`Failed to start test runner: ${error}`);
-        resolve(false);
+        token.onCancellationRequested(() => {
+          proc.kill();
+          reject(new Error('Cancelled'));
+        });
       });
     });
-  }
-
-  dispose(): void {
-    // Nothing to clean up currently
   }
 }

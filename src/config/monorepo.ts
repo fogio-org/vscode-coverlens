@@ -1,51 +1,36 @@
-import * as vscode from 'vscode';
-import * as path from 'path';
 import * as fs from 'fs';
+import * as path from 'path';
+import * as fg from 'fast-glob';
 
-export interface MonorepoPackage {
-  name: string;
-  path: string;
-}
-
-export function detectMonorepoPackages(workspaceRoot: string): MonorepoPackage[] {
-  const packages: MonorepoPackage[] = [];
-  const packageJsonPath = path.join(workspaceRoot, 'package.json');
-
-  if (!fs.existsSync(packageJsonPath)) {
-    return packages;
+/** Detect monorepo package roots */
+export async function detectPackages(workspaceRoot: string): Promise<string[]> {
+  // pnpm-workspace.yaml
+  const pnpmWs = path.join(workspaceRoot, 'pnpm-workspace.yaml');
+  if (fs.existsSync(pnpmWs)) {
+    const content = fs.readFileSync(pnpmWs, 'utf8');
+    const patterns = content.match(/- ['"]?([^'"]+)['"]?/g)
+      ?.map(m => m.replace(/^- ['"]?|['"]?$/g, '').trim()) ?? [];
+    return resolvePatterns(patterns, workspaceRoot);
   }
 
-  try {
-    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
-    const workspaces: string[] = Array.isArray(packageJson.workspaces)
-      ? packageJson.workspaces
-      : packageJson.workspaces?.packages ?? [];
-
-    for (const pattern of workspaces) {
-      const cleanPattern = pattern.replace(/\/\*$/, '');
-      const dir = path.join(workspaceRoot, cleanPattern);
-      if (fs.existsSync(dir) && fs.statSync(dir).isDirectory()) {
-        for (const entry of fs.readdirSync(dir)) {
-          const pkgPath = path.join(dir, entry);
-          const pkgJsonPath = path.join(pkgPath, 'package.json');
-          if (fs.existsSync(pkgJsonPath)) {
-            try {
-              const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
-              packages.push({ name: pkgJson.name ?? entry, path: pkgPath });
-            } catch {
-              packages.push({ name: entry, path: pkgPath });
-            }
-          }
-        }
-      }
-    }
-  } catch {
-    // Not a valid package.json or not a monorepo
+  // package.json workspaces
+  const pkgJson = path.join(workspaceRoot, 'package.json');
+  if (fs.existsSync(pkgJson)) {
+    const pkg = JSON.parse(fs.readFileSync(pkgJson, 'utf8'));
+    const patterns: string[] = Array.isArray(pkg.workspaces)
+      ? pkg.workspaces
+      : pkg.workspaces?.packages ?? [];
+    if (patterns.length) return resolvePatterns(patterns, workspaceRoot);
   }
 
-  return packages;
+  return [workspaceRoot]; // single-package fallback
 }
 
-export function getWorkspaceRoots(): string[] {
-  return vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath) ?? [];
+async function resolvePatterns(patterns: string[], root: string): Promise<string[]> {
+  const results: string[] = [];
+  for (const pattern of patterns) {
+    const matches = await fg.glob(pattern, { cwd: root, absolute: true, onlyDirectories: true });
+    results.push(...matches);
+  }
+  return results.length ? results : [root];
 }
