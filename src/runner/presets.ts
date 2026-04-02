@@ -24,8 +24,8 @@ export const PRESETS: Record<string, RunnerPreset> = {
   },
   go: {
     name: 'Go test',
-    command: 'go test ./... -coverprofile=coverage.out && gocov convert coverage.out | gocov-xml > coverage.xml',
-    outputGlob: 'coverage.xml'
+    command: 'go test ./... -coverprofile=coverage.out',
+    outputGlob: 'coverage.out'
   },
   cargo: {
     name: 'Cargo (tarpaulin)',

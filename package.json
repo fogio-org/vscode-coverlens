@@ -97,7 +97,8 @@
             "**/cov.xml",
             "**/coverage.cobertura.xml",
             "**/jacoco.xml",
-            "**/clover.xml"
+            "**/clover.xml",
+            "**/coverage.out"
           ],
           "description": "Glob patterns to find coverage files. Supports multiple files for monorepos."
         },

@@ -4,15 +4,18 @@ import { CoverageMap } from './types';
 import { parseLcov } from './parser/lcov';
 import { parseCobertura } from './parser/cobertura';
 import { parseJacoco } from './parser/jacoco';
+import { parseGoCover } from './parser/gocover';
 import { Logger } from '../util/logger';
 
-type CoverageFormat = 'lcov' | 'cobertura' | 'jacoco' | 'unknown';
+type CoverageFormat = 'lcov' | 'cobertura' | 'jacoco' | 'gocover' | 'unknown';
 
 function detectFormat(filePath: string, content: string): CoverageFormat {
   const base = path.basename(filePath).toLowerCase();
   if (base === 'lcov.info' || base.endsWith('.lcov') || content.includes('SF:')) return 'lcov';
   if (content.includes('<coverage') && content.includes('line-rate')) return 'cobertura';
   if (content.includes('<report') && content.includes('jacoco')) return 'jacoco';
+  // Go coverage profile starts with "mode: set|count|atomic"
+  if (base === 'coverage.out' || base.endsWith('.coverprofile') || content.startsWith('mode:')) return 'gocover';
   return 'unknown';
 }
 
@@ -47,6 +50,8 @@ export async function loadCoverage(
         partial = await parseCobertura(file, workspaceRoot);
       } else if (format === 'jacoco') {
         partial = await parseJacoco(file, workspaceRoot);
+      } else if (format === 'gocover') {
+        partial = await parseGoCover(file, workspaceRoot);
       } else {
         log.warn(`  unknown format, skipping: ${file}`);
         continue;
