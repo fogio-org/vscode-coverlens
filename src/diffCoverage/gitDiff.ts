@@ -1,38 +1,47 @@
-import { execSync } from 'child_process';
+import * as cp from 'child_process';
+import * as path from 'path';
+import { normalizePath } from '../util/paths';
 
-export interface DiffLine {
-  filePath: string;
-  lineNumber: number;
+/** Returns map of absolute file path → set of changed line numbers */
+export async function getChangedLines(
+  workspaceRoot: string,
+  base: string
+): Promise<Map<string, Set<number>>> {
+  return new Promise((resolve, reject) => {
+    // git diff --unified=0 shows only changed lines with no context
+    cp.exec(
+      `git diff --unified=0 ${base}`,
+      { cwd: workspaceRoot },
+      (err, stdout, stderr) => {
+        if (err) { reject(new Error(stderr || err.message)); return; }
+        resolve(parseDiffOutput(stdout, workspaceRoot));
+      }
+    );
+  });
 }
 
-export function getChangedLines(workspaceRoot: string, base: string): DiffLine[] {
-  const changedLines: DiffLine[] = [];
+function parseDiffOutput(diff: string, workspaceRoot: string): Map<string, Set<number>> {
+  const result = new Map<string, Set<number>>();
+  let currentFile: string | null = null;
 
-  try {
-    const output = execSync(`git diff --unified=0 ${base}`, {
-      cwd: workspaceRoot,
-      encoding: 'utf-8',
-      maxBuffer: 10 * 1024 * 1024,
-    });
-
-    let currentFile = '';
-    for (const line of output.split('\n')) {
-      if (line.startsWith('+++ b/')) {
-        currentFile = line.slice(6);
-      } else if (line.startsWith('@@')) {
-        const match = line.match(/@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/);
-        if (match && currentFile) {
-          const start = Number(match[1]);
-          const count = Number(match[2] ?? 1);
-          for (let i = 0; i < count; i++) {
-            changedLines.push({ filePath: currentFile, lineNumber: start + i });
-          }
-        }
+  for (const line of diff.split('\n')) {
+    // +++ b/src/foo.ts
+    if (line.startsWith('+++ b/')) {
+      const rel = line.slice(6).trim();
+      currentFile = normalizePath(path.resolve(workspaceRoot, rel));
+      if (!result.has(currentFile)) result.set(currentFile, new Set());
+    }
+    // @@ -old +new,count @@
+    else if (line.startsWith('@@') && currentFile) {
+      const m = line.match(/\+(\d+)(?:,(\d+))?/);
+      if (m) {
+        const start = parseInt(m[1], 10);
+        const count = m[2] !== undefined ? parseInt(m[2], 10) : 1;
+        const lines = result.get(currentFile)!;
+        for (let i = 0; i < count; i++) lines.add(start + i);
       }
     }
-  } catch {
-    // git diff may fail if not in a git repo — silently return empty
   }
 
-  return changedLines;
+  return result;
 }

@@ -1,47 +1,51 @@
 import * as vscode from 'vscode';
-import { FileCoverage, CoverageMap } from '../coverage/types';
+import { CoverageMap } from '../coverage/types';
 
 export class CoverageStatusBar {
-  private statusBarItem: vscode.StatusBarItem;
+  private item: vscode.StatusBarItem;
 
   constructor() {
-    this.statusBarItem = vscode.window.createStatusBarItem(
-      vscode.StatusBarAlignment.Left,
-      100,
-    );
-    this.statusBarItem.command = 'coverlens.toggle';
-    this.statusBarItem.tooltip = 'Click to toggle coverage display';
+    this.item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+    this.item.command = 'coverlens.toggle';
+    this.item.tooltip = 'CoverLens: click to toggle coverage display';
+    this.item.show();
+    this.setLoading();
   }
 
-  update(files: CoverageMap): void {
-    if (files.size === 0) {
-      this.statusBarItem.text = '$(shield) CoverLens: No data';
-      this.statusBarItem.show();
-      return;
+  setLoading(): void {
+    this.item.text = '$(shield) Coverage…';
+    this.item.backgroundColor = undefined;
+  }
+
+  setNoCoverage(): void {
+    this.item.text = '$(shield) No coverage';
+    this.item.backgroundColor = undefined;
+  }
+
+  setDiffMode(enabled: boolean): void {
+    // Append diff indicator to current text
+    const base = this.item.text.replace(' [diff]', '');
+    this.item.text = enabled ? `${base} [diff]` : base;
+  }
+
+  update(map: CoverageMap, enabled: boolean): void {
+    if (map.size === 0) { this.setNoCoverage(); return; }
+
+    const totalLines   = [...map.values()].reduce((s, f) => s + f.metrics.totalLines, 0);
+    const coveredLines = [...map.values()].reduce((s, f) => s + f.metrics.coveredLines, 0);
+    const pct = totalLines === 0 ? 100 : Math.round((coveredLines / totalLines) * 100);
+
+    const icon = enabled ? '$(shield)' : '$(shield-x)';
+    this.item.text = `${icon} ${pct}%`;
+
+    if (pct < 50) {
+      this.item.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
+    } else if (pct < 80) {
+      this.item.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+    } else {
+      this.item.backgroundColor = undefined;
     }
-
-    let totalLines = 0;
-    let coveredLines = 0;
-
-    for (const coverage of files.values()) {
-      totalLines += coverage.metrics.totalLines;
-      coveredLines += coverage.metrics.coveredLines;
-    }
-
-    const pct = totalLines > 0 ? Math.round((coveredLines / totalLines) * 100) : 0;
-    this.statusBarItem.text = `$(shield) CoverLens: ${pct}%`;
-    this.statusBarItem.show();
   }
 
-  show(): void {
-    this.statusBarItem.show();
-  }
-
-  hide(): void {
-    this.statusBarItem.hide();
-  }
-
-  dispose(): void {
-    this.statusBarItem.dispose();
-  }
+  dispose(): void { this.item.dispose(); }
 }

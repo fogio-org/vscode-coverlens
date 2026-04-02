@@ -1,37 +1,40 @@
 import * as chokidar from 'chokidar';
-import { Logger } from '../util/logger';
+
+type OnChangeCallback = () => Promise<void>;
 
 export class CoverageWatcher {
-  private watcher: chokidar.FSWatcher | undefined;
-  private onChange: (path: string) => void;
-  private log: Logger;
+  private watcher?: chokidar.FSWatcher;
 
-  constructor(onChange: (path: string) => void, log: Logger) {
-    this.onChange = onChange;
-    this.log = log;
+  async start(
+    globs: string[],
+    excludePatterns: string[],
+    workspaceRoot: string,
+    onChange: OnChangeCallback
+  ): Promise<void> {
+    this.stop();
+
+    // Resolve globs to actual patterns
+    const absGlobs = globs.map(g =>
+      g.startsWith('/') ? g : `${workspaceRoot}/${g}`
+    );
+
+    this.watcher = chokidar.watch(absGlobs, {
+      ignored: excludePatterns,
+      ignoreInitial: false,
+      persistent: true,
+      awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 }
+    });
+
+    this.watcher.on('change', async () => {
+      await onChange();
+    });
+
+    this.watcher.on('add', async () => {
+      await onChange();
+    });
   }
 
-  watch(patterns: string[]): void {
-    this.dispose();
-    this.log.info(`Watching coverage files: ${patterns.join(', ')}`);
-
-    this.watcher = chokidar.watch(patterns, {
-      ignoreInitial: true,
-      awaitWriteFinish: { stabilityThreshold: 500, pollInterval: 100 },
-    });
-
-    this.watcher.on('change', (path) => {
-      this.log.info(`Coverage file changed: ${path}`);
-      this.onChange(path);
-    });
-
-    this.watcher.on('add', (path) => {
-      this.log.info(`Coverage file added: ${path}`);
-      this.onChange(path);
-    });
-  }
-
-  dispose(): void {
+  stop(): void {
     this.watcher?.close();
     this.watcher = undefined;
   }

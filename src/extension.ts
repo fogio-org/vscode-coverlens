@@ -10,9 +10,7 @@ import { getChangedLines } from './diffCoverage/gitDiff';
 import { saveSnapshot, loadLatestSnapshot } from './history/store';
 import { computeDelta } from './history/trend';
 import { Logger } from './util/logger';
-import { normalizePath } from './util/paths';
 import { CoverageMap, CoverageSnapshot } from './coverage/types';
-import * as path from 'path';
 
 let log: Logger;
 let decorator: CoverageDecorator;
@@ -27,32 +25,35 @@ export function activate(context: vscode.ExtensionContext): void {
   log.info('CoverLens activating...');
 
   const settings = getSettings();
+  const workspaceRoots = getWorkspaceRoots();
+  const primaryRoot = workspaceRoots[0] ?? '';
+
   decorator = new CoverageDecorator(context);
   statusBar = new CoverageStatusBar();
-  treeProvider = new CoverageTreeProvider();
+  treeProvider = new CoverageTreeProvider(primaryRoot);
+  watcher = new CoverageWatcher();
 
   const treeView = vscode.window.createTreeView('coverlens.tree', {
     treeDataProvider: treeProvider,
   });
 
-  watcher = new CoverageWatcher(async () => {
-    await refreshCoverage();
-  }, log);
-
   context.subscriptions.push(
     vscode.commands.registerCommand('coverlens.toggle', () => {
       decorator.toggle();
+      const enabled = decorator.isEnabled;
+      statusBar.update(currentCoverage ?? new Map(), enabled);
       vscode.window.showInformationMessage(
-        `CoverLens: Coverage display ${decorator.isEnabled ? 'enabled' : 'disabled'}`,
+        `CoverLens: Coverage display ${enabled ? 'enabled' : 'disabled'}`,
       );
     }),
 
-    vscode.commands.registerCommand('coverlens.toggleDiff', () => {
+    vscode.commands.registerCommand('coverlens.toggleDiff', async () => {
       diffModeActive = !diffModeActive;
+      statusBar.setDiffMode(diffModeActive);
       vscode.window.showInformationMessage(
         `CoverLens: Diff mode ${diffModeActive ? 'enabled' : 'disabled'}`,
       );
-      updateDiffFilter();
+      await updateDiffFilter();
     }),
 
     vscode.commands.registerCommand('coverlens.runWithCoverage', async () => {
@@ -66,11 +67,8 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
 
     vscode.commands.registerCommand('coverlens.showHistory', () => {
-      const roots = getWorkspaceRoots();
-      if (roots.length === 0) {
-        return;
-      }
-      const previous = loadLatestSnapshot(roots[0], log);
+      if (!primaryRoot) return;
+      const previous = loadLatestSnapshot(primaryRoot, log);
       if (!previous) {
         vscode.window.showInformationMessage('CoverLens: No coverage history found');
         return;
@@ -98,7 +96,7 @@ export function activate(context: vscode.ExtensionContext): void {
     { dispose: () => decorator.dispose() },
     { dispose: () => statusBar.dispose() },
     { dispose: () => treeProvider.dispose() },
-    { dispose: () => watcher.dispose() },
+    { dispose: () => watcher.stop() },
     { dispose: () => log.dispose() },
   );
 
@@ -106,7 +104,15 @@ export function activate(context: vscode.ExtensionContext): void {
     decorator.enable();
   }
 
-  setupWatcher(settings.coverageFiles);
+  // Start file watcher and initial load
+  if (primaryRoot) {
+    watcher.start(
+      settings.coverageFiles,
+      settings.excludePatterns,
+      primaryRoot,
+      () => refreshCoverage(),
+    );
+  }
   refreshCoverage();
 
   log.info('CoverLens activated');
@@ -151,16 +157,16 @@ async function refreshCoverage(): Promise<void> {
       saveSnapshot(workspaceRoots[0], currentCoverage, log);
     }
 
-    statusBar.update(currentCoverage);
-    treeProvider.update(currentCoverage);
+    statusBar.update(currentCoverage, decorator.isEnabled);
+    treeProvider.setCoverage(currentCoverage);
     decorator.setCoverage(currentCoverage);
-    updateDiffFilter();
+    await updateDiffFilter();
   } else {
-    statusBar.update(new Map());
+    statusBar.setNoCoverage();
   }
 }
 
-function updateDiffFilter(): void {
+async function updateDiffFilter(): Promise<void> {
   if (!diffModeActive) {
     decorator.setDiffFilter(null);
     return;
@@ -172,32 +178,12 @@ function updateDiffFilter(): void {
     return;
   }
 
-  const changedLines = getChangedLines(roots[0], settings.diffBase);
-  const diffMap = new Map<string, Set<number>>();
-  for (const dl of changedLines) {
-    const normalized = normalizePath(path.resolve(roots[0], dl.filePath));
-    let set = diffMap.get(normalized);
-    if (!set) {
-      set = new Set();
-      diffMap.set(normalized, set);
-    }
-    set.add(dl.lineNumber);
-  }
-  decorator.setDiffFilter(diffMap);
-}
-
-function setupWatcher(patterns: string[]): void {
-  const roots = getWorkspaceRoots();
-  const watchPatterns: string[] = [];
-
-  for (const root of roots) {
-    for (const pattern of patterns) {
-      watchPatterns.push(path.join(root, pattern));
-    }
-  }
-
-  if (watchPatterns.length > 0) {
-    watcher.watch(watchPatterns);
+  try {
+    const diffMap = await getChangedLines(roots[0], settings.diffBase);
+    decorator.setDiffFilter(diffMap);
+  } catch (err) {
+    log.error(`Failed to get git diff: ${err}`);
+    decorator.setDiffFilter(null);
   }
 }
 
