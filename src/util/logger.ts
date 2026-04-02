@@ -1,24 +1,15 @@
 import * as vscode from 'vscode';
 
-let outputChannel: vscode.OutputChannel | undefined;
+export class Logger {
+  private channel: vscode.OutputChannel;
 
-export function getOutputChannel(): vscode.OutputChannel {
-  if (!outputChannel) {
-    outputChannel = vscode.window.createOutputChannel('CoverLens');
+  constructor() {
+    this.channel = vscode.window.createOutputChannel('CoverLens');
   }
-  return outputChannel;
-}
 
-export function log(message: string): void {
-  getOutputChannel().appendLine(`[${new Date().toISOString()}] ${message}`);
-}
-
-export function logError(message: string, error?: unknown): void {
-  const errorMsg = error instanceof Error ? error.message : String(error ?? '');
-  log(`ERROR: ${message}${errorMsg ? ` - ${errorMsg}` : ''}`);
-}
-
-export function dispose(): void {
-  outputChannel?.dispose();
-  outputChannel = undefined;
+  info(msg: string): void { this.channel.appendLine(`[INFO]  ${msg}`); }
+  warn(msg: string): void { this.channel.appendLine(`[WARN]  ${msg}`); }
+  error(msg: string): void { this.channel.appendLine(`[ERROR] ${msg}`); }
+  show(): void { this.channel.show(); }
+  dispose(): void { this.channel.dispose(); }
 }

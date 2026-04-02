@@ -1,4 +1,4 @@
-import { CoverageState } from '../coverage/types';
+import { LineState } from '../coverage/types';
 
 export interface CoverageTheme {
   gutterIconColor: string;
@@ -6,18 +6,18 @@ export interface CoverageTheme {
   overviewRulerColor: string;
 }
 
-export const defaultTheme: Record<CoverageState, CoverageTheme> = {
-  [CoverageState.Covered]: {
+export const defaultTheme: Record<string, CoverageTheme> = {
+  covered: {
     gutterIconColor: '#4caf50',
     backgroundColor: 'rgba(76, 175, 80, 0.1)',
     overviewRulerColor: '#4caf50',
   },
-  [CoverageState.Partial]: {
+  partial: {
     gutterIconColor: '#ff9800',
     backgroundColor: 'rgba(255, 152, 0, 0.1)',
     overviewRulerColor: '#ff9800',
   },
-  [CoverageState.Uncovered]: {
+  uncovered: {
     gutterIconColor: '#f44336',
     backgroundColor: 'rgba(244, 67, 54, 0.1)',
     overviewRulerColor: '#f44336',

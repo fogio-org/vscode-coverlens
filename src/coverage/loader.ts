@@ -1,79 +1,64 @@
-import * as fs from 'fs';
 import * as path from 'path';
-import { CoverageData, CoverageFormat, FileCoverage } from './types';
+import * as fg from 'fast-glob';
+import { CoverageMap } from './types';
 import { parseLcov } from './parser/lcov';
 import { parseCobertura } from './parser/cobertura';
-import { parseClover } from './parser/clover';
 import { parseJacoco } from './parser/jacoco';
-import { log, logError } from '../util/logger';
+import { Logger } from '../util/logger';
 
-export function detectFormat(filePath: string, content: string): CoverageFormat | undefined {
-  const ext = path.extname(filePath).toLowerCase();
-  const baseName = path.basename(filePath).toLowerCase();
+type CoverageFormat = 'lcov' | 'cobertura' | 'jacoco' | 'unknown';
 
-  if (baseName.includes('lcov') || ext === '.info') {
-    return 'lcov';
-  }
-
-  if (content.includes('<coverage') && content.includes('cobertura')) {
-    return 'cobertura';
-  }
-
-  if (content.includes('<coverage') && content.includes('clover')) {
-    return 'clover';
-  }
-
-  if (content.includes('<report') && content.includes('jacoco')) {
-    return 'jacoco';
-  }
-
-  // Fallback heuristics
-  if (content.trimStart().startsWith('TN:') || content.includes('end_of_record')) {
-    return 'lcov';
-  }
-
-  if (content.includes('<coverage')) {
-    return 'cobertura';
-  }
-
-  return undefined;
+function detectFormat(filePath: string, content: string): CoverageFormat {
+  const base = path.basename(filePath).toLowerCase();
+  if (base === 'lcov.info' || base.endsWith('.lcov') || content.includes('SF:')) return 'lcov';
+  if (content.includes('<coverage') && content.includes('line-rate')) return 'cobertura';
+  if (content.includes('<report') && content.includes('jacoco')) return 'jacoco';
+  return 'unknown';
 }
 
-export async function loadCoverageFile(filePath: string, basePath: string): Promise<CoverageData | undefined> {
-  try {
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const format = detectFormat(filePath, content);
+/** Load all coverage files matching the given globs, merge into one map */
+export async function loadCoverage(
+  globs: string[],
+  excludePatterns: string[],
+  workspaceRoot: string,
+  log: Logger
+): Promise<CoverageMap> {
+  const files = await fg.glob(globs, {
+    cwd: workspaceRoot,
+    absolute: true,
+    ignore: excludePatterns
+  });
 
-    if (!format) {
-      log(`Unknown coverage format for ${filePath}`);
-      return undefined;
+  log.info(`CoverLens: found ${files.length} coverage file(s)`);
+
+  const merged: CoverageMap = new Map();
+
+  for (const file of files) {
+    try {
+      const fs = await import('fs');
+      const content = await fs.promises.readFile(file, 'utf8');
+      const format = detectFormat(file, content);
+      log.info(`  parsing ${file} as ${format}`);
+
+      let partial: CoverageMap;
+      if (format === 'lcov') {
+        partial = await parseLcov(file, workspaceRoot);
+      } else if (format === 'cobertura') {
+        partial = await parseCobertura(file, workspaceRoot);
+      } else if (format === 'jacoco') {
+        partial = await parseJacoco(file, workspaceRoot);
+      } else {
+        log.warn(`  unknown format, skipping: ${file}`);
+        continue;
+      }
+
+      for (const [k, v] of partial) {
+        merged.set(k, v);
+      }
+    } catch (err) {
+      log.error(`  failed to parse ${file}: ${err}`);
     }
-
-    log(`Loading ${format} coverage from ${filePath}`);
-    let files: Map<string, FileCoverage>;
-
-    switch (format) {
-      case 'lcov':
-        files = parseLcov(content, basePath);
-        break;
-      case 'cobertura':
-        files = await parseCobertura(content, basePath);
-        break;
-      case 'clover':
-        files = await parseClover(content, basePath);
-        break;
-      case 'jacoco':
-        files = await parseJacoco(content, basePath);
-        break;
-    }
-
-    return {
-      files,
-      timestamp: Date.now(),
-      source: filePath,
-    };
-  } catch (error) {
-    logError(`Failed to load coverage from ${filePath}`, error);
-    return undefined;
   }
+
+  return merged;
 }

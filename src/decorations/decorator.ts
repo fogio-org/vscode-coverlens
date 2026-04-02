@@ -1,9 +1,11 @@
 import * as vscode from 'vscode';
-import { CoverageState, FileCoverage } from '../coverage/types';
+import { FileCoverage, LineState } from '../coverage/types';
 import { defaultTheme } from './themes';
 
+const LINE_STATES: LineState[] = ['covered', 'partial', 'uncovered'];
+
 export class CoverageDecorator {
-  private decorationTypes: Map<CoverageState, vscode.TextEditorDecorationType> = new Map();
+  private decorationTypes: Map<LineState, vscode.TextEditorDecorationType> = new Map();
   private enabled = false;
 
   constructor() {
@@ -11,7 +13,7 @@ export class CoverageDecorator {
   }
 
   private createDecorationTypes(): void {
-    for (const state of Object.values(CoverageState)) {
+    for (const state of LINE_STATES) {
       const theme = defaultTheme[state];
       this.decorationTypes.set(
         state,
@@ -43,30 +45,33 @@ export class CoverageDecorator {
       return;
     }
 
-    const decorations = new Map<CoverageState, vscode.DecorationOptions[]>();
-    for (const state of Object.values(CoverageState)) {
+    const decorations = new Map<LineState, vscode.DecorationOptions[]>();
+    for (const state of LINE_STATES) {
       decorations.set(state, []);
     }
 
-    const branchLines = new Set(
-      coverage.branches
-        .filter(b => b.taken === 0)
-        .map(b => b.lineNumber),
-    );
-
-    for (const line of coverage.lines) {
-      const lineIndex = line.lineNumber - 1;
+    for (const [lineNumber, hits] of coverage.lines) {
+      const lineIndex = lineNumber - 1;
       if (lineIndex < 0 || lineIndex >= editor.document.lineCount) {
         continue;
       }
 
-      let state: CoverageState;
-      if (line.executionCount === 0) {
-        state = CoverageState.Uncovered;
-      } else if (branchLines.has(line.lineNumber)) {
-        state = CoverageState.Partial;
+      let state: LineState;
+      if (hits === 0) {
+        state = 'uncovered';
       } else {
-        state = CoverageState.Covered;
+        // Check if this line has partial branch coverage
+        const branches = coverage.branches.get(lineNumber);
+        if (branches && branches.length > 0) {
+          const takenCount = branches.filter(b => b.taken > 0).length;
+          if (takenCount > 0 && takenCount < branches.length) {
+            state = 'partial';
+          } else {
+            state = 'covered';
+          }
+        } else {
+          state = 'covered';
+        }
       }
 
       const range = editor.document.lineAt(lineIndex).range;

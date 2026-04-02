@@ -1,5 +1,4 @@
 import { execSync } from 'child_process';
-import { logError } from '../util/logger';
 
 export interface DiffLine {
   filePath: string;
@@ -31,8 +30,8 @@ export function getChangedLines(workspaceRoot: string, base: string): DiffLine[]
         }
       }
     }
-  } catch (error) {
-    logError('Failed to get git diff', error);
+  } catch {
+    // git diff may fail if not in a git repo — silently return empty
   }
 
   return changedLines;

@@ -3,28 +3,28 @@ import { CoverageDecorator } from './decorations/decorator';
 import { CoverageStatusBar } from './panel/statusBar';
 import { CoverageTreeProvider } from './panel/coverageTree';
 import { CoverageWatcher } from './coverage/watcher';
-import { loadCoverageFile } from './coverage/loader';
-import { aggregateCoverage } from './coverage/aggregator';
+import { loadCoverage } from './coverage/loader';
 import { getSettings } from './config/settings';
 import { getWorkspaceRoots } from './config/monorepo';
 import { getChangedLines } from './diffCoverage/gitDiff';
 import { filterCoverageToDiff } from './diffCoverage/filter';
 import { saveSnapshot, loadLatestSnapshot } from './history/store';
 import { computeDelta } from './history/trend';
-import { log } from './util/logger';
-import { CoverageData, FileCoverage } from './coverage/types';
-import * as fg from 'fast-glob';
+import { Logger } from './util/logger';
+import { CoverageMap, CoverageSnapshot } from './coverage/types';
 import * as path from 'path';
 
+let log: Logger;
 let decorator: CoverageDecorator;
 let statusBar: CoverageStatusBar;
 let treeProvider: CoverageTreeProvider;
 let watcher: CoverageWatcher;
-let currentCoverage: CoverageData | undefined;
+let currentCoverage: CoverageMap | undefined;
 let diffModeActive = false;
 
 export function activate(context: vscode.ExtensionContext): void {
-  log('CoverLens activating...');
+  log = new Logger();
+  log.info('CoverLens activating...');
 
   const settings = getSettings();
   decorator = new CoverageDecorator();
@@ -37,7 +37,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   watcher = new CoverageWatcher(async () => {
     await refreshCoverage();
-  });
+  }, log);
 
   context.subscriptions.push(
     vscode.commands.registerCommand('coverlens.toggle', () => {
@@ -75,16 +75,22 @@ export function activate(context: vscode.ExtensionContext): void {
       if (roots.length === 0) {
         return;
       }
-      const previous = loadLatestSnapshot(roots[0]);
+      const previous = loadLatestSnapshot(roots[0], log);
       if (!previous) {
         vscode.window.showInformationMessage('CoverLens: No coverage history found');
         return;
       }
       if (currentCoverage) {
-        const delta = computeDelta(previous, currentCoverage);
+        const currentSnapshot: CoverageSnapshot = {
+          timestamp: Date.now(),
+          totalLinePercent: computeTotalPercent(currentCoverage),
+          totalBranchPercent: 0,
+          files: {},
+        };
+        const delta = computeDelta(previous, currentSnapshot);
         const sign = delta.delta >= 0 ? '+' : '';
         vscode.window.showInformationMessage(
-          `CoverLens: Coverage ${sign}${(delta.delta * 100).toFixed(1)}% (${(delta.currentRate * 100).toFixed(1)}% current)`,
+          `CoverLens: Coverage ${sign}${delta.delta}% (${delta.currentPercent}% current)`,
         );
       }
     }),
@@ -104,6 +110,7 @@ export function activate(context: vscode.ExtensionContext): void {
     { dispose: () => statusBar.dispose() },
     { dispose: () => treeProvider.dispose() },
     { dispose: () => watcher.dispose() },
+    { dispose: () => log.dispose() },
   );
 
   if (settings.enabled) {
@@ -113,7 +120,17 @@ export function activate(context: vscode.ExtensionContext): void {
   setupWatcher(settings.coverageFiles);
   refreshCoverage();
 
-  log('CoverLens activated');
+  log.info('CoverLens activated');
+}
+
+function computeTotalPercent(data: CoverageMap): number {
+  let total = 0;
+  let covered = 0;
+  for (const fc of data.values()) {
+    total += fc.metrics.totalLines;
+    covered += fc.metrics.coveredLines;
+  }
+  return total > 0 ? Math.round((covered / total) * 100) : 100;
 }
 
 async function refreshCoverage(): Promise<void> {
@@ -124,33 +141,29 @@ async function refreshCoverage(): Promise<void> {
     return;
   }
 
-  const datasets: CoverageData[] = [];
+  const merged: CoverageMap = new Map();
 
   for (const root of workspaceRoots) {
-    for (const pattern of settings.coverageFiles) {
-      const matches = await fg.default(pattern, {
-        cwd: root,
-        absolute: true,
-        ignore: settings.excludePatterns,
-      });
-      for (const match of matches) {
-        const data = await loadCoverageFile(match, root);
-        if (data) {
-          datasets.push(data);
-        }
-      }
+    const partial = await loadCoverage(
+      settings.coverageFiles,
+      settings.excludePatterns,
+      root,
+      log,
+    );
+    for (const [k, v] of partial) {
+      merged.set(k, v);
     }
   }
 
-  if (datasets.length > 0) {
-    currentCoverage = aggregateCoverage(datasets);
+  if (merged.size > 0) {
+    currentCoverage = merged;
 
     if (settings.historyEnabled) {
-      saveSnapshot(workspaceRoots[0], currentCoverage);
+      saveSnapshot(workspaceRoots[0], currentCoverage, log);
     }
 
-    statusBar.update(currentCoverage.files);
-    treeProvider.update(currentCoverage.files);
+    statusBar.update(currentCoverage);
+    treeProvider.update(currentCoverage);
     applyDecorations();
   } else {
     statusBar.update(new Map());
@@ -167,7 +180,7 @@ function applyDecorations(): void {
     return;
   }
 
-  let files = currentCoverage.files;
+  let files = currentCoverage;
 
   if (diffModeActive) {
     const settings = getSettings();
@@ -203,5 +216,5 @@ function setupWatcher(patterns: string[]): void {
 }
 
 export function deactivate(): void {
-  log('CoverLens deactivated');
+  log?.info('CoverLens deactivated');
 }

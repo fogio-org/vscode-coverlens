@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { CoverageData } from '../coverage/types';
-import { log, logError } from '../util/logger';
+import { CoverageMap, CoverageSnapshot } from '../coverage/types';
+import { Logger } from '../util/logger';
 
 const STORE_DIR = '.coverlens';
 
@@ -9,26 +9,22 @@ export function getStorePath(workspaceRoot: string): string {
   return path.join(workspaceRoot, STORE_DIR);
 }
 
-export function saveSnapshot(workspaceRoot: string, data: CoverageData): string {
+export function saveSnapshot(workspaceRoot: string, data: CoverageMap, log: Logger): string {
   const storePath = getStorePath(workspaceRoot);
   if (!fs.existsSync(storePath)) {
     fs.mkdirSync(storePath, { recursive: true });
   }
 
-  const filename = `snapshot-${data.timestamp}.json`;
+  const snapshot = createSnapshot(data);
+  const filename = `snapshot-${snapshot.timestamp}.json`;
   const filePath = path.join(storePath, filename);
 
-  const serializable = {
-    ...data,
-    files: Object.fromEntries(data.files),
-  };
-
-  fs.writeFileSync(filePath, JSON.stringify(serializable, null, 2));
-  log(`Saved coverage snapshot: ${filename}`);
+  fs.writeFileSync(filePath, JSON.stringify(snapshot, null, 2));
+  log.info(`Saved coverage snapshot: ${filename}`);
   return filePath;
 }
 
-export function loadLatestSnapshot(workspaceRoot: string): CoverageData | undefined {
+export function loadLatestSnapshot(workspaceRoot: string, log: Logger): CoverageSnapshot | undefined {
   const storePath = getStorePath(workspaceRoot);
   if (!fs.existsSync(storePath)) {
     return undefined;
@@ -45,13 +41,35 @@ export function loadLatestSnapshot(workspaceRoot: string): CoverageData | undefi
     }
 
     const content = fs.readFileSync(path.join(storePath, files[0]), 'utf-8');
-    const parsed = JSON.parse(content);
-    return {
-      ...parsed,
-      files: new Map(Object.entries(parsed.files)),
-    };
+    return JSON.parse(content) as CoverageSnapshot;
   } catch (error) {
-    logError('Failed to load snapshot', error);
+    log.error(`Failed to load snapshot: ${error}`);
     return undefined;
   }
+}
+
+function createSnapshot(data: CoverageMap): CoverageSnapshot {
+  let totalLines = 0;
+  let coveredLines = 0;
+  let totalBranches = 0;
+  let coveredBranches = 0;
+  const files: CoverageSnapshot['files'] = {};
+
+  for (const [filePath, fc] of data) {
+    totalLines += fc.metrics.totalLines;
+    coveredLines += fc.metrics.coveredLines;
+    totalBranches += fc.metrics.totalBranches;
+    coveredBranches += fc.metrics.coveredBranches;
+    files[filePath] = {
+      linePercent: fc.metrics.linePercent,
+      branchPercent: fc.metrics.branchPercent,
+    };
+  }
+
+  return {
+    timestamp: Date.now(),
+    totalLinePercent: totalLines > 0 ? Math.round((coveredLines / totalLines) * 100) : 100,
+    totalBranchPercent: totalBranches > 0 ? Math.round((coveredBranches / totalBranches) * 100) : 100,
+    files,
+  };
 }

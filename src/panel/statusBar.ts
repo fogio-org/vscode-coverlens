@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { FileCoverage } from '../coverage/types';
+import { FileCoverage, CoverageMap } from '../coverage/types';
 
 export class CoverageStatusBar {
   private statusBarItem: vscode.StatusBarItem;
@@ -9,11 +9,11 @@ export class CoverageStatusBar {
       vscode.StatusBarAlignment.Left,
       100,
     );
-    this.statusBarItem.command = 'coverlens.toggleCoverage';
+    this.statusBarItem.command = 'coverlens.toggle';
     this.statusBarItem.tooltip = 'Click to toggle coverage display';
   }
 
-  update(files: Map<string, FileCoverage>): void {
+  update(files: CoverageMap): void {
     if (files.size === 0) {
       this.statusBarItem.text = '$(shield) CoverLens: No data';
       this.statusBarItem.show();
@@ -24,8 +24,8 @@ export class CoverageStatusBar {
     let coveredLines = 0;
 
     for (const coverage of files.values()) {
-      totalLines += coverage.lines.length;
-      coveredLines += coverage.lines.filter(l => l.executionCount > 0).length;
+      totalLines += coverage.metrics.totalLines;
+      coveredLines += coverage.metrics.coveredLines;
     }
 
     const pct = totalLines > 0 ? Math.round((coveredLines / totalLines) * 100) : 0;

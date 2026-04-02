@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { FileCoverage } from '../coverage/types';
+import { FileCoverage, CoverageMap } from '../coverage/types';
 
 export class CoverageTreeItem extends vscode.TreeItem {
   constructor(
@@ -11,9 +11,9 @@ export class CoverageTreeItem extends vscode.TreeItem {
   ) {
     super(label, collapsibleState);
     if (coverage) {
-      const pct = Math.round(coverage.lineRate * 100);
+      const pct = coverage.metrics.linePercent;
       this.description = `${pct}%`;
-      this.tooltip = `Line coverage: ${pct}%`;
+      this.tooltip = `Line coverage: ${pct}% (${coverage.metrics.coveredLines}/${coverage.metrics.totalLines})`;
     }
   }
 }
@@ -21,9 +21,9 @@ export class CoverageTreeItem extends vscode.TreeItem {
 export class CoverageTreeProvider implements vscode.TreeDataProvider<CoverageTreeItem> {
   private _onDidChangeTreeData = new vscode.EventEmitter<CoverageTreeItem | undefined>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
-  private coverageData: Map<string, FileCoverage> = new Map();
+  private coverageData: CoverageMap = new Map();
 
-  update(data: Map<string, FileCoverage>): void {
+  update(data: CoverageMap): void {
     this.coverageData = data;
     this._onDidChangeTreeData.fire(undefined);
   }

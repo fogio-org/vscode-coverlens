@@ -1,16 +1,29 @@
 import * as path from 'path';
+import * as fs from 'fs';
 
-export function normalizePath(filePath: string): string {
-  return filePath.replace(/\\/g, '/');
+/** Normalize path separators to forward slashes */
+export function normalizePath(p: string): string {
+  return p.replace(/\\/g, '/');
 }
 
-export function resolveFilePath(basePath: string, filePath: string): string {
-  const resolved = path.isAbsolute(filePath)
-    ? filePath
-    : path.resolve(basePath, filePath);
-  return normalizePath(resolved);
-}
+/**
+ * Given a path from a coverage file (may be relative or absolute),
+ * resolve it against the workspace root and return a normalized absolute path.
+ */
+export function resolveFilePath(coveragePath: string, workspaceRoot: string): string {
+  const normalized = normalizePath(coveragePath);
+  if (path.isAbsolute(normalized)) return normalized;
 
-export function getRelativePath(basePath: string, filePath: string): string {
-  return normalizePath(path.relative(basePath, filePath));
+  // Try to find the file by traversing up from workspaceRoot
+  const candidates = [
+    path.resolve(workspaceRoot, normalized),
+    path.resolve(workspaceRoot, 'src', normalized),
+  ];
+
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return normalizePath(c);
+  }
+
+  // Fallback: just join with workspace root
+  return normalizePath(path.resolve(workspaceRoot, normalized));
 }

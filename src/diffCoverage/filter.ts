@@ -1,11 +1,11 @@
-import { FileCoverage } from '../coverage/types';
+import { FileCoverage, CoverageMap } from '../coverage/types';
 import { DiffLine } from './gitDiff';
 
 export function filterCoverageToDiff(
-  coverage: Map<string, FileCoverage>,
+  coverage: CoverageMap,
   changedLines: DiffLine[],
-): Map<string, FileCoverage> {
-  const filtered = new Map<string, FileCoverage>();
+): CoverageMap {
+  const filtered: CoverageMap = new Map();
 
   const changesByFile = new Map<string, Set<number>>();
   for (const diff of changedLines) {
@@ -23,17 +23,38 @@ export function filterCoverageToDiff(
       continue;
     }
 
-    const filteredLines = fileCov.lines.filter(l => changedLineNumbers.has(l.lineNumber));
-    const filteredBranches = fileCov.branches.filter(b => changedLineNumbers.has(b.lineNumber));
+    const filteredLines = new Map<number, number>();
+    for (const [lineNo, hits] of fileCov.lines) {
+      if (changedLineNumbers.has(lineNo)) {
+        filteredLines.set(lineNo, hits);
+      }
+    }
 
-    if (filteredLines.length > 0) {
-      const coveredCount = filteredLines.filter(l => l.executionCount > 0).length;
+    const filteredBranches = new Map<number, typeof fileCov.branches extends Map<number, infer V> ? V : never>();
+    for (const [lineNo, bds] of fileCov.branches) {
+      if (changedLineNumbers.has(lineNo)) {
+        filteredBranches.set(lineNo, bds);
+      }
+    }
+
+    if (filteredLines.size > 0) {
+      let coveredCount = 0;
+      for (const hits of filteredLines.values()) {
+        if (hits > 0) coveredCount++;
+      }
       filtered.set(filePath, {
         filePath,
         lines: filteredLines,
         branches: filteredBranches,
-        lineRate: filteredLines.length > 0 ? coveredCount / filteredLines.length : 0,
-        branchRate: fileCov.branchRate,
+        metrics: {
+          totalLines: filteredLines.size,
+          coveredLines: coveredCount,
+          totalBranches: 0,
+          coveredBranches: 0,
+          partialBranches: 0,
+          linePercent: filteredLines.size > 0 ? Math.round((coveredCount / filteredLines.size) * 100) : 100,
+          branchPercent: 0,
+        },
       });
     }
   }

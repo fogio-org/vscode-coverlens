@@ -1,17 +1,19 @@
 import * as chokidar from 'chokidar';
-import { log } from '../util/logger';
+import { Logger } from '../util/logger';
 
 export class CoverageWatcher {
   private watcher: chokidar.FSWatcher | undefined;
   private onChange: (path: string) => void;
+  private log: Logger;
 
-  constructor(onChange: (path: string) => void) {
+  constructor(onChange: (path: string) => void, log: Logger) {
     this.onChange = onChange;
+    this.log = log;
   }
 
   watch(patterns: string[]): void {
     this.dispose();
-    log(`Watching coverage files: ${patterns.join(', ')}`);
+    this.log.info(`Watching coverage files: ${patterns.join(', ')}`);
 
     this.watcher = chokidar.watch(patterns, {
       ignoreInitial: true,
@@ -19,12 +21,12 @@ export class CoverageWatcher {
     });
 
     this.watcher.on('change', (path) => {
-      log(`Coverage file changed: ${path}`);
+      this.log.info(`Coverage file changed: ${path}`);
       this.onChange(path);
     });
 
     this.watcher.on('add', (path) => {
-      log(`Coverage file added: ${path}`);
+      this.log.info(`Coverage file added: ${path}`);
       this.onChange(path);
     });
   }
