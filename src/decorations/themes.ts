@@ -2,87 +2,67 @@ import * as vscode from 'vscode';
 
 export interface CoverageTheme {
   covered: vscode.DecorationRenderOptions;
-  partial: vscode.DecorationRenderOptions;   // branch partially covered
+  partial: vscode.DecorationRenderOptions;
   uncovered: vscode.DecorationRenderOptions;
 }
 
 /** Build theme from config or use sensible defaults */
 export function buildTheme(
-  style: 'gutter' | 'line' | 'both',
+  style: 'border' | 'highlight',
   customColors: { covered?: string; partial?: string; uncovered?: string }
 ): CoverageTheme {
 
-  const coveredColor   = customColors.covered   || 'rgba(64, 173, 100, 0.18)';
-  const partialColor   = customColors.partial   || 'rgba(220, 170, 50, 0.20)';
-  const uncoveredColor = customColors.uncovered || 'rgba(200, 60, 60, 0.18)';
+  const coveredSolid   = customColors.covered   || 'rgba(64, 173, 100, 0.6)';
+  const partialSolid   = customColors.partial   || 'rgba(220, 170, 50, 0.6)';
+  const uncoveredSolid = customColors.uncovered || 'rgba(200, 60, 60, 0.6)';
 
-  const coveredBorder   = customColors.covered   || 'rgba(64, 173, 100, 0.6)';
-  const partialBorder   = customColors.partial   || 'rgba(220, 170, 50, 0.6)';
-  const uncoveredBorder = customColors.uncovered || 'rgba(200, 60, 60, 0.6)';
-
-  const line: CoverageTheme = {
+  // "border" mode: only a vertical bar on the left edge of each line
+  const border: CoverageTheme = {
     covered: {
-      backgroundColor: coveredColor,
-      borderWidth: '0 0 0 2px',
+      borderWidth: '0 0 0 3px',
       borderStyle: 'solid',
-      borderColor: coveredBorder,
-      overviewRulerColor: coveredBorder,
+      borderColor: coveredSolid,
+      overviewRulerColor: coveredSolid,
       overviewRulerLane: vscode.OverviewRulerLane.Left,
+      isWholeLine: true,
     },
     partial: {
-      backgroundColor: partialColor,
-      borderWidth: '0 0 0 2px',
+      borderWidth: '0 0 0 3px',
       borderStyle: 'solid',
-      borderColor: partialBorder,
-      overviewRulerColor: partialBorder,
+      borderColor: partialSolid,
+      overviewRulerColor: partialSolid,
       overviewRulerLane: vscode.OverviewRulerLane.Left,
+      isWholeLine: true,
     },
     uncovered: {
-      backgroundColor: uncoveredColor,
-      borderWidth: '0 0 0 2px',
+      borderWidth: '0 0 0 3px',
       borderStyle: 'solid',
-      borderColor: uncoveredBorder,
-      overviewRulerColor: uncoveredBorder,
+      borderColor: uncoveredSolid,
+      overviewRulerColor: uncoveredSolid,
       overviewRulerLane: vscode.OverviewRulerLane.Left,
+      isWholeLine: true,
     },
   };
 
-  if (style === 'line') return line;
+  if (style === 'border') return border;
 
-  // For 'gutter' mode: only gutter, no background
-  // For 'both' mode: background + gutter
-  const gutterOnly: CoverageTheme = {
-    covered: {
-      gutterIconPath: svgCircle('4dad64'),
-      gutterIconSize: 'contain',
-      overviewRulerColor: coveredBorder,
-      overviewRulerLane: vscode.OverviewRulerLane.Left,
-    },
-    partial: {
-      gutterIconPath: svgCircle('dcaa32'),
-      gutterIconSize: 'contain',
-      overviewRulerColor: partialBorder,
-      overviewRulerLane: vscode.OverviewRulerLane.Left,
-    },
-    uncovered: {
-      gutterIconPath: svgCircle('c83c3c'),
-      gutterIconSize: 'contain',
-      overviewRulerColor: uncoveredBorder,
-      overviewRulerLane: vscode.OverviewRulerLane.Left,
-    },
-  };
+  // "highlight" mode: vertical bar + background fill
+  const coveredBg   = customColors.covered   || 'rgba(64, 173, 100, 0.18)';
+  const partialBg   = customColors.partial   || 'rgba(220, 170, 50, 0.20)';
+  const uncoveredBg = customColors.uncovered || 'rgba(200, 60, 60, 0.18)';
 
-  if (style === 'gutter') return gutterOnly;
-
-  // 'both': merge
   return {
-    covered:   { ...line.covered,   ...gutterOnly.covered },
-    partial:   { ...line.partial,   ...gutterOnly.partial },
-    uncovered: { ...line.uncovered, ...gutterOnly.uncovered },
+    covered: {
+      ...border.covered,
+      backgroundColor: coveredBg,
+    },
+    partial: {
+      ...border.partial,
+      backgroundColor: partialBg,
+    },
+    uncovered: {
+      ...border.uncovered,
+      backgroundColor: uncoveredBg,
+    },
   };
-}
-
-function svgCircle(hex: string): vscode.Uri {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5" fill="#${hex}"/></svg>`;
-  return vscode.Uri.parse(`data:image/svg+xml;utf8,${encodeURIComponent(svg)}`);
 }

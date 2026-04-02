@@ -36,7 +36,7 @@ export class CoverageDecorator {
     this.uncoveredType?.dispose();
 
     const cfg = vscode.workspace.getConfiguration('coverlens');
-    const style = cfg.get<'gutter' | 'line' | 'both'>('decorationStyle', 'line');
+    const style = cfg.get<'border' | 'highlight'>('decorationStyle', 'border');
     const colors = {
       covered:   cfg.get<string>('colors.covered',   ''),
       partial:   cfg.get<string>('colors.partial',   ''),

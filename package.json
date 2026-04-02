@@ -125,9 +125,9 @@
         },
         "coverlens.decorationStyle": {
           "type": "string",
-          "enum": ["gutter", "line", "both"],
-          "default": "line",
-          "description": "How to show coverage: 'line' = background highlight (no debugger conflict), 'gutter' = gutter icons, 'both'"
+          "enum": ["border", "highlight"],
+          "default": "border",
+          "description": "How to show coverage: 'border' = vertical bar on the left edge, 'highlight' = vertical bar + background fill"
         },
         "coverlens.diffMode": {
           "type": "boolean",
