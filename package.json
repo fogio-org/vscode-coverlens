@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "publisher": "coverlens",
   "icon": "assets/icon.png",
-  "engines": { "vscode": "^1.88.0" },
+  "engines": { "vscode": "^1.110.0" },
   "categories": ["Testing"],
   "keywords": ["coverage", "lcov", "test", "monorepo", "diff"],
   "activationEvents": ["onStartupFinished"],
