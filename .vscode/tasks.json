@@ -4,7 +4,6 @@
     {
       "type": "npm",
       "script": "watch",
-      "problemMatcher": "$ts-webpack-watch",
       "isBackground": true,
       "presentation": {
         "reveal": "never"
@@ -12,6 +11,22 @@
       "group": {
         "kind": "build",
         "isDefault": true
+      },
+      "problemMatcher": {
+        "owner": "webpack",
+        "severity": "error",
+        "fileLocation": "absolute",
+        "pattern": {
+          "regexp": "^ERROR in (.+)\\((\\d+),(\\d+)\\)",
+          "file": 1,
+          "line": 2,
+          "column": 3
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "\\[webpack-cli\\] Compiler starting",
+          "endsPattern": "\\[webpack-cli\\] Compiler finished|compiled successfully|compiled with"
+        }
       }
     }
   ]
