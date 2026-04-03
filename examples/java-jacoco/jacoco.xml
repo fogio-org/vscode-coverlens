@@ -22,17 +22,17 @@
       <method name="sum" desc="([I)I" line="26">
         <counter type="INSTRUCTION" missed="0" covered="6"/>
         <counter type="BRANCH" missed="0" covered="2"/>
-        <counter type="LINE" missed="0" covered="4"/>
+        <counter type="LINE" missed="0" covered="5"/>
       </method>
-      <method name="average" desc="([I)D" line="33">
+      <method name="average" desc="([I)D" line="34">
         <counter type="INSTRUCTION" missed="2" covered="3"/>
         <counter type="BRANCH" missed="1" covered="1"/>
-        <counter type="LINE" missed="1" covered="2"/>
+        <counter type="LINE" missed="1" covered="3"/>
       </method>
-      <method name="clamp" desc="(III)I" line="40">
-        <counter type="INSTRUCTION" missed="1" covered="4"/>
+      <method name="clamp" desc="(III)I" line="41">
+        <counter type="INSTRUCTION" missed="1" covered="5"/>
         <counter type="BRANCH" missed="1" covered="3"/>
-        <counter type="LINE" missed="1" covered="4"/>
+        <counter type="LINE" missed="1" covered="5"/>
       </method>
     </class>
     <sourcefile name="MathUtils.java">
