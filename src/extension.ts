@@ -27,7 +27,7 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
   const decorator  = new CoverageDecorator(ctx);
   const treeProvider = new CoverageTreeProvider(workspaceRoot);
   const statusBar  = new CoverageStatusBar();
-  const history    = new HistoryStore(workspaceRoot);
+  const history    = new HistoryStore(ctx.globalStorageUri.fsPath, workspaceRoot);
   const watcher    = new CoverageWatcher();
   const runner     = new TestRunner(workspaceRoot, log);
 
@@ -136,7 +136,7 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
     }),
 
     vscode.commands.registerCommand('coverlens.clearHistory', () => {
-      const historyDir = require('path').join(workspaceRoot, '.coverlens');
+      const historyDir = ctx.globalStorageUri.fsPath;
       require('fs').rmSync(historyDir, { recursive: true, force: true });
       vscode.window.showInformationMessage('CoverLens: history cleared.');
     })

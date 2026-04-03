@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { CoverageMap, CoverageSnapshot } from '../coverage/types';
@@ -5,8 +6,14 @@ import { CoverageMap, CoverageSnapshot } from '../coverage/types';
 export class HistoryStore {
   private dir: string;
 
-  constructor(workspaceRoot: string) {
-    this.dir = path.join(workspaceRoot, '.coverlens');
+  /**
+   * Store snapshots inside VS Code's globalStoragePath so they never
+   * pollute the user's repository.  Each workspace gets its own sub-folder
+   * derived from a hash of the workspace root path.
+   */
+  constructor(globalStoragePath: string, workspaceRoot: string) {
+    const hash = crypto.createHash('sha256').update(workspaceRoot).digest('hex').slice(0, 12);
+    this.dir = path.join(globalStoragePath, 'history', hash);
     if (!fs.existsSync(this.dir)) fs.mkdirSync(this.dir, { recursive: true });
   }
 
