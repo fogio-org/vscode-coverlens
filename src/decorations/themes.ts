@@ -16,32 +16,21 @@ export function buildTheme(
   const partialSolid   = customColors.partial   || 'rgba(220, 170, 50, 0.6)';
   const uncoveredSolid = customColors.uncovered || 'rgba(200, 60, 60, 0.6)';
 
+  // Simple left border — standard approach used by coverage extensions.
+  const barDecoration = (color: string): vscode.DecorationRenderOptions => ({
+    borderWidth: '0 0 0 3px',
+    borderStyle: 'solid',
+    borderColor: color,
+    overviewRulerColor: color,
+    overviewRulerLane: vscode.OverviewRulerLane.Left,
+    isWholeLine: true,
+  });
+
   // "border" mode: only a vertical bar on the left edge of each line
   const border: CoverageTheme = {
-    covered: {
-      borderWidth: '0 0 0 3px',
-      borderStyle: 'solid',
-      borderColor: coveredSolid,
-      overviewRulerColor: coveredSolid,
-      overviewRulerLane: vscode.OverviewRulerLane.Left,
-      isWholeLine: true,
-    },
-    partial: {
-      borderWidth: '0 0 0 3px',
-      borderStyle: 'solid',
-      borderColor: partialSolid,
-      overviewRulerColor: partialSolid,
-      overviewRulerLane: vscode.OverviewRulerLane.Left,
-      isWholeLine: true,
-    },
-    uncovered: {
-      borderWidth: '0 0 0 3px',
-      borderStyle: 'solid',
-      borderColor: uncoveredSolid,
-      overviewRulerColor: uncoveredSolid,
-      overviewRulerLane: vscode.OverviewRulerLane.Left,
-      isWholeLine: true,
-    },
+    covered:   barDecoration(coveredSolid),
+    partial:   barDecoration(partialSolid),
+    uncovered: barDecoration(uncoveredSolid),
   };
 
   if (style === 'border') return border;
