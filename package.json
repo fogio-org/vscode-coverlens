@@ -93,14 +93,25 @@
           "items": { "type": "string" },
           "default": [
             "**/lcov.info",
+            "**/lcov-report/lcov.info",
+            "**/coverage/lcov.info",
+            "**/coverage.lcov",
             "**/coverage.xml",
             "**/cov.xml",
             "**/coverage.cobertura.xml",
+            "**/coverage-report.xml",
             "**/jacoco.xml",
+            "**/jacoco-report.xml",
+            "**/site/jacoco/jacoco.xml",
+            "**/target/site/jacoco/jacoco.xml",
             "**/clover.xml",
-            "**/coverage.out"
+            "**/coverage.out",
+            "**/*.coverprofile",
+            "**/cover.out",
+            "**/coverage.json",
+            "**/coverage-final.json"
           ],
-          "description": "Glob patterns to find coverage files. Supports multiple files for monorepos."
+          "description": "Glob patterns to find coverage files. Add custom patterns if your tool outputs to a non-standard path."
         },
         "coverlens.excludePatterns": {
           "type": "array",

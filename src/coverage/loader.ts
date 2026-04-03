@@ -5,17 +5,35 @@ import { parseLcov } from './parser/lcov';
 import { parseCobertura } from './parser/cobertura';
 import { parseJacoco } from './parser/jacoco';
 import { parseGoCover } from './parser/gocover';
+import { parseIstanbul } from './parser/istanbul';
 import { Logger } from '../util/logger';
 
-type CoverageFormat = 'lcov' | 'cobertura' | 'jacoco' | 'gocover' | 'unknown';
+type CoverageFormat = 'lcov' | 'cobertura' | 'jacoco' | 'gocover' | 'istanbul-json' | 'unknown';
 
 function detectFormat(filePath: string, content: string): CoverageFormat {
   const base = path.basename(filePath).toLowerCase();
+
+  // LCOV text format
   if (base === 'lcov.info' || base.endsWith('.lcov') || content.includes('SF:')) return 'lcov';
-  if (content.includes('<coverage') && content.includes('line-rate')) return 'cobertura';
-  if (content.includes('<report') && content.includes('jacoco')) return 'jacoco';
-  // Go coverage profile starts with "mode: set|count|atomic"
-  if (base === 'coverage.out' || base.endsWith('.coverprofile') || content.startsWith('mode:')) return 'gocover';
+
+  // XML formats — check content to distinguish
+  if (content.trimStart().startsWith('<')) {
+    if (content.includes('<report') && content.includes('jacoco')) return 'jacoco';
+    if (content.includes('<coverage') && content.includes('line-rate')) return 'cobertura';
+  }
+
+  // Go coverage profile: "mode: set|count|atomic"
+  if (base === 'coverage.out' || base === 'cover.out' || base.endsWith('.coverprofile') || content.startsWith('mode:')) return 'gocover';
+
+  // Istanbul/NYC JSON format (coverage.json, coverage-final.json)
+  if (base.endsWith('.json') && content.trimStart().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(content);
+      const firstKey = Object.keys(parsed)[0];
+      if (firstKey && parsed[firstKey]?.statementMap) return 'istanbul-json';
+    } catch { /* not valid JSON */ }
+  }
+
   return 'unknown';
 }
 
@@ -52,6 +70,8 @@ export async function loadCoverage(
         partial = await parseJacoco(file, workspaceRoot);
       } else if (format === 'gocover') {
         partial = await parseGoCover(file, workspaceRoot);
+      } else if (format === 'istanbul-json') {
+        partial = await parseIstanbul(file, workspaceRoot);
       } else {
         log.warn(`  unknown format, skipping: ${file}`);
         continue;
