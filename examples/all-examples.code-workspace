@@ -1,0 +1,15 @@
+{
+  "folders": [
+    { "path": "js-jest",        "name": "JS (Jest)" },
+    { "path": "ts-vitest",      "name": "TS (Vitest)" },
+    { "path": "python-pytest",  "name": "Python (pytest)" },
+    { "path": "go",             "name": "Go" },
+    { "path": "rust-cargo",     "name": "Rust (Cargo)" },
+    { "path": "dotnet",         "name": ".NET" },
+    { "path": "java-jacoco",    "name": "Java (JaCoCo)" }
+  ],
+  "settings": {
+    "coverlens.enabled": true,
+    "coverlens.monorepo.enabled": false
+  }
+}
