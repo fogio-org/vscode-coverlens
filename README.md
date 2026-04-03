@@ -23,7 +23,7 @@
 ## Supported Languages & Formats
 
 | Language | Test Runner | Coverage Format |
-|---|---|---|
+| --- | --- | --- |
 | JavaScript / TypeScript | Jest, Vitest | LCOV, Istanbul JSON |
 | Python | pytest | LCOV, Cobertura XML |
 | Go | go test | Go coverage profile |
@@ -65,7 +65,7 @@ Or use **CoverLens: Run Tests with Coverage** (`Cmd+Shift+P`) to generate covera
 ## Coverage States
 
 | State | Color | Meaning |
-|---|---|---|
+| --- | --- | --- |
 | Covered | Green | Line executed, all branches taken |
 | Partial | Yellow | Line executed, but some branches not taken |
 | Uncovered | Red | Line never executed |
@@ -105,6 +105,7 @@ Uses `git diff` against a configurable base ref:
 ## Monorepo Support
 
 CoverLens automatically detects packages from:
+
 - `pnpm-workspace.yaml`
 - `package.json` workspaces (npm/yarn)
 
@@ -117,7 +118,7 @@ Coverage from all packages is aggregated into one unified view. Configure manual
 ## Commands
 
 | Command | Description |
-|---|---|
+| --- | --- |
 | CoverLens: Toggle Coverage | Show or hide coverage decorations |
 | CoverLens: Toggle Diff Mode | Switch between all-lines and changed-lines view |
 | CoverLens: Run Tests with Coverage | Execute test runner and reload coverage |
@@ -128,7 +129,7 @@ Coverage from all packages is aggregated into one unified view. Configure manual
 ## Settings
 
 | Setting | Default | Description |
-|---|---|---|
+| --- | --- | --- |
 | `coverlens.enabled` | `true` | Enable coverage visualization on startup |
 | `coverlens.coverageFiles` | `["**/lcov.info", ...]` | Glob patterns to find coverage files |
 | `coverlens.excludePatterns` | `["**/node_modules/**", ...]` | Patterns to exclude from search |
