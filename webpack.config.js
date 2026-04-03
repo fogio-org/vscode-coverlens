@@ -6,7 +6,7 @@ const path = require('path');
 /** @type {import('webpack').Configuration} */
 const config = {
   target: 'node',
-  mode: 'none',
+  // mode is set via CLI: --mode development|production
   entry: './src/extension.ts',
   output: {
     path: path.resolve(__dirname, 'dist'),
@@ -32,7 +32,8 @@ const config = {
       },
     ],
   },
-  devtool: 'nosources-source-map',
+  // devtool is set via CLI for production (--devtool hidden-source-map)
+  devtool: 'source-map',
   infrastructureLogging: {
     level: 'log',
   },

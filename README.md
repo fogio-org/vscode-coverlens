@@ -2,8 +2,8 @@
 
 > **Three-state code coverage visualization** for VS Code — see covered, partially covered, and uncovered lines at a glance.
 
-[![VS Marketplace](https://img.shields.io/visual-studio-marketplace/v/coverlens.coverlens)](https://marketplace.visualstudio.com/items?itemName=coverlens.coverlens)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/coverlens.coverlens)](https://marketplace.visualstudio.com/items?itemName=coverlens.coverlens)
+[![VS Marketplace](https://img.shields.io/visual-studio-marketplace/v/fogio.coverlens)](https://marketplace.visualstudio.com/items?itemName=fogio.coverlens)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/fogio.coverlens)](https://marketplace.visualstudio.com/items?itemName=fogio.coverlens)
 
 ---
 

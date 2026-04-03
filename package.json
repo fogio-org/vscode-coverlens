@@ -3,14 +3,30 @@
   "displayName": "CoverLens",
   "description": "Three-state coverage lens with diff mode and monorepo support",
   "version": "0.1.0",
-  "publisher": "coverlens",
+  "publisher": "fogio",
   "icon": "assets/icon.png",
-  "engines": { "vscode": "^1.110.0" },
-  "categories": ["Testing"],
-  "keywords": ["coverage", "lcov", "test", "monorepo", "diff"],
-  "activationEvents": ["onStartupFinished"],
+  "engines": {
+    "vscode": "^1.110.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/coverlens/vscode-coverlens"
+  },
+  "categories": [
+    "Testing"
+  ],
+  "keywords": [
+    "coverage",
+    "lcov",
+    "test",
+    "monorepo",
+    "diff"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./dist/extension.js",
-
   "contributes": {
     "commands": [
       {
@@ -43,7 +59,6 @@
         "title": "CoverLens: Clear Coverage History"
       }
     ],
-
     "views": {
       "test": [
         {
@@ -54,7 +69,6 @@
         }
       ]
     },
-
     "menus": {
       "view/title": [
         {
@@ -79,7 +93,6 @@
         }
       ]
     },
-
     "configuration": {
       "title": "CoverLens",
       "properties": {
@@ -90,7 +103,9 @@
         },
         "coverlens.coverageFiles": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": [
             "**/lcov.info",
             "**/lcov-report/lcov.info",
@@ -115,8 +130,15 @@
         },
         "coverlens.excludePatterns": {
           "type": "array",
-          "items": { "type": "string" },
-          "default": ["**/node_modules/**", "**/.venv/**", "**/vendor/**", "**/dist/**"],
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "**/node_modules/**",
+            "**/.venv/**",
+            "**/vendor/**",
+            "**/dist/**"
+          ],
           "description": "Glob patterns to exclude when searching for coverage files"
         },
         "coverlens.colors.covered": {
@@ -136,7 +158,10 @@
         },
         "coverlens.decorationStyle": {
           "type": "string",
-          "enum": ["border", "highlight"],
+          "enum": [
+            "border",
+            "highlight"
+          ],
           "default": "border",
           "description": "How to show coverage: 'border' = vertical bar on the left edge, 'highlight' = vertical bar + background fill"
         },
@@ -162,7 +187,16 @@
         },
         "coverlens.testRunner": {
           "type": "string",
-          "enum": ["auto", "jest", "vitest", "pytest", "go", "cargo", "dotnet", "custom"],
+          "enum": [
+            "auto",
+            "jest",
+            "vitest",
+            "pytest",
+            "go",
+            "cargo",
+            "dotnet",
+            "custom"
+          ],
           "default": "auto",
           "description": "Test runner for 'Run Tests with Coverage' command"
         },
@@ -178,7 +212,9 @@
         },
         "coverlens.monorepo.packages": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": [],
           "description": "Override monorepo package roots (leave empty for auto-detection from package.json/pnpm-workspace.yaml)"
         },
@@ -195,7 +231,6 @@
       }
     }
   },
-
   "scripts": {
     "vscode:prepublish": "npm run package",
     "compile": "webpack",
@@ -204,7 +239,6 @@
     "test": "jest",
     "lint": "eslint src --ext ts"
   },
-
   "dependencies": {
     "chokidar": "^5.0.0",
     "fast-glob": "^3.3.3",
@@ -220,6 +254,7 @@
     "@types/xml2js": "^0.4.14",
     "@typescript-eslint/eslint-plugin": "^8.58.0",
     "@typescript-eslint/parser": "^8.58.0",
+    "@vscode/vsce": "^3.7.1",
     "eslint": "^10.1.0",
     "jest": "^30.3.0",
     "prettier": "^3.8.1",
