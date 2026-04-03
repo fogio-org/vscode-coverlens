@@ -2,7 +2,7 @@
   "name": "coverlens",
   "displayName": "CoverLens",
   "description": "Three-state coverage lens with diff mode and monorepo support",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "fogio",
   "icon": "assets/icon.png",
   "engines": {
@@ -11,7 +11,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/coverlens/vscode-coverlens"
+    "url": "https://github.com/fogio-org/vscode-coverlens"
+  },
+  "homepage": "https://github.com/fogio-org/vscode-coverlens",
+  "bugs": {
+    "url": "https://github.com/fogio-org/vscode-coverlens/issues",
+    "email": "team@fogio.org"
   },
   "categories": [
     "Testing"

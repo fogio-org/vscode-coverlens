@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1
+
+- Update README and package.json for improved visibility and versioning
+- Enhance badge display and correct repository links
+
 ## 0.1.0
 
 ### Features

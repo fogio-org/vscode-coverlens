@@ -2,8 +2,12 @@
 
 > **Three-state code coverage visualization** for VS Code — see covered, partially covered, and uncovered lines at a glance.
 
-[![VS Marketplace](https://img.shields.io/visual-studio-marketplace/v/fogio.coverlens)](https://marketplace.visualstudio.com/items?itemName=fogio.coverlens)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/fogio.coverlens)](https://marketplace.visualstudio.com/items?itemName=fogio.coverlens)
+<p align="center">
+    <a href="https://marketplace.visualstudio.com/items?itemName=fogio.coverlens"><img src="https://img.shields.io/visual-studio-marketplace/v/fogio.coverlens?style=for-the-badge&colorA=555555&colorB=007ec6&label=VERSION" alt="Version"></a>&nbsp;
+    <a href="https://marketplace.visualstudio.com/items?itemName=fogio.coverlens"><img src="https://img.shields.io/visual-studio-marketplace/r/fogio.coverlens?style=for-the-badge&colorA=555555&colorB=007ec6&label=RATING" alt="Rating"></a>&nbsp;
+    <a href="https://marketplace.visualstudio.com/items?itemName=fogio.coverlens"><img src="https://img.shields.io/visual-studio-marketplace/i/fogio.coverlens?style=for-the-badge&colorA=555555&colorB=007ec6&label=Installs" alt="INSTALLS"></a>&nbsp;
+    <a href="https://marketplace.visualstudio.com/items?itemName=fogio.coverlens"><img src="https://img.shields.io/visual-studio-marketplace/d/fogio.coverlens?style=for-the-badge&colorA=555555&colorB=007ec6&label=Downloads" alt="DOWNLOADS"></a>
+</p>
 
 ---
 
@@ -78,13 +82,13 @@ Most coverage tools only show binary covered/uncovered. CoverLens shows **partia
 
 Minimal vertical bar on the left edge — clean, non-intrusive, works great with any theme.
 
-![Border mode](assets/screenshot-border.png)
+![Border mode](https://raw.githubusercontent.com/fogio-org/vscode-coverlens/refs/heads/master/assets/screenshot-border.png)
 
 ### Highlight mode
 
 Vertical bar + background fill — maximum visibility for reviewing coverage.
 
-![Highlight mode](assets/screenshot-highlight.png)
+![Highlight mode](https://raw.githubusercontent.com/fogio-org/vscode-coverlens/master/assets/screenshot-highlight.png)
 
 Set via `coverlens.decorationStyle`. Both modes use line decorations (not gutter icons), so they **never conflict with debugger breakpoints** — you can set breakpoints freely while coverage is visible.
 
