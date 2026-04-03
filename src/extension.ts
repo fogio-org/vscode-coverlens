@@ -53,6 +53,10 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
       if (monorepoEnabled && !packages.length) {
         packages = await detectPackages(workspaceRoot);
       }
+      // Fallback: always include workspace root if no packages resolved
+      if (!packages.length) {
+        packages = [workspaceRoot];
+      }
 
       const merged: CoverageMap = new Map();
       for (const pkg of packages) {

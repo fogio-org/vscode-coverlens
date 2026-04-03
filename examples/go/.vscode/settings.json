@@ -1,5 +1,0 @@
-{
-  "coverlens.enabled": true,
-  "coverlens.coverageFiles": ["coverage.out"],
-  "coverlens.monorepo.enabled": false
-}

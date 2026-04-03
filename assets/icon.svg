@@ -1,15 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <!-- Shield -->
-  <path d="M64 12 L100 28 L100 72 Q100 98 64 116 Q28 98 28 72 L28 28 Z"
-        fill="#1a2a3a" stroke="#4dad64" stroke-width="3"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <!-- V3: Shield with three-state bars (centered) -->
+  <circle cx="128" cy="128" r="128" fill="#1a1b26"/>
 
-  <!-- Bar chart inside shield (three states) -->
-  <rect x="42" y="72" width="10" height="26" rx="2" fill="#4dad64"/>
-  <rect x="57" y="60" width="10" height="38" rx="2" fill="#4dad64" opacity="0.7"/>
-  <rect x="72" y="80" width="10" height="18" rx="2" fill="#dcaa32"/>
-  <rect x="87" y="88" width="10" height="10" rx="2" fill="#c83c3c" opacity="0.6"/>
+  <!-- Shield outline -->
+  <path d="M128 40 L188 66 L188 136 Q188 182 128 212 Q68 182 68 136 L68 66 Z"
+        fill="none" stroke="#565f89" stroke-width="4"/>
 
-  <!-- Magnifying glass -->
-  <circle cx="88" cy="88" r="20" fill="none" stroke="#88aaff" stroke-width="4"/>
-  <line x1="103" y1="103" x2="116" y2="116" stroke="#88aaff" stroke-width="5" stroke-linecap="round"/>
+  <!-- Coverage bars - vertically centered in shield -->
+  <rect x="94" y="82" width="56" height="8" rx="4" fill="#9ece6a"/>
+  <rect x="94" y="102" width="42" height="8" rx="4" fill="#9ece6a"/>
+  <rect x="94" y="122" width="50" height="8" rx="4" fill="#e0af68"/>
+  <rect x="94" y="142" width="36" height="8" rx="4" fill="#f7768e"/>
+  <rect x="94" y="162" width="48" height="8" rx="4" fill="#f7768e"/>
 </svg>

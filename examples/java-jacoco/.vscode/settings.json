@@ -1,5 +1,0 @@
-{
-  "coverlens.enabled": true,
-  "coverlens.coverageFiles": ["jacoco.xml"],
-  "coverlens.monorepo.enabled": false
-}

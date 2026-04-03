@@ -1,5 +1,0 @@
-{
-  "coverlens.enabled": true,
-  "coverlens.coverageFiles": ["lcov.info", "coverage.cobertura.xml"],
-  "coverlens.monorepo.enabled": false
-}
