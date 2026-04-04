@@ -6,48 +6,55 @@ import { CoverageMap, CoverageSnapshot } from '../coverage/types';
 export class HistoryStore {
   private dir: string;
 
-  /**
-   * Store snapshots inside VS Code's globalStoragePath so they never
-   * pollute the user's repository.  Each workspace gets its own sub-folder
-   * derived from a hash of the workspace root path.
-   */
   constructor(globalStoragePath: string, workspaceRoot: string) {
     const hash = crypto.createHash('sha256').update(workspaceRoot).digest('hex').slice(0, 12);
     this.dir = path.join(globalStoragePath, 'history', hash);
-    if (!fs.existsSync(this.dir)) fs.mkdirSync(this.dir, { recursive: true });
+    try {
+      if (!fs.existsSync(this.dir)) fs.mkdirSync(this.dir, { recursive: true });
+    } catch {
+      // Storage not writable — history will be disabled
+    }
   }
 
   save(map: CoverageMap): void {
-    const totalLines   = [...map.values()].reduce((s, f) => s + f.metrics.totalLines, 0);
-    const coveredLines = [...map.values()].reduce((s, f) => s + f.metrics.coveredLines, 0);
-    const totalBranches   = [...map.values()].reduce((s, f) => s + f.metrics.totalBranches, 0);
-    const coveredBranches = [...map.values()].reduce((s, f) => s + f.metrics.coveredBranches, 0);
+    try {
+      const totalLines   = [...map.values()].reduce((s, f) => s + f.metrics.totalLines, 0);
+      const coveredLines = [...map.values()].reduce((s, f) => s + f.metrics.coveredLines, 0);
+      const totalBranches   = [...map.values()].reduce((s, f) => s + f.metrics.totalBranches, 0);
+      const coveredBranches = [...map.values()].reduce((s, f) => s + f.metrics.coveredBranches, 0);
 
-    const snap: CoverageSnapshot = {
-      timestamp: Date.now(),
-      totalLinePercent:   totalLines   === 0 ? 100 : Math.round(coveredLines   / totalLines   * 100),
-      totalBranchPercent: totalBranches === 0 ? 100 : Math.round(coveredBranches / totalBranches * 100),
-      files: {}
-    };
-
-    for (const [p, fc] of map) {
-      snap.files[p] = {
-        linePercent:   fc.metrics.linePercent,
-        branchPercent: fc.metrics.branchPercent
+      const snap: CoverageSnapshot = {
+        timestamp: Date.now(),
+        totalLinePercent:   totalLines   === 0 ? 100 : Math.round(coveredLines   / totalLines   * 100),
+        totalBranchPercent: totalBranches === 0 ? 100 : Math.round(coveredBranches / totalBranches * 100),
+        files: {}
       };
-    }
 
-    const file = path.join(this.dir, `snap_${snap.timestamp}.json`);
-    fs.writeFileSync(file, JSON.stringify(snap));
-    this.prune();
+      for (const [p, fc] of map) {
+        snap.files[p] = {
+          linePercent:   fc.metrics.linePercent,
+          branchPercent: fc.metrics.branchPercent
+        };
+      }
+
+      const file = path.join(this.dir, `snap_${snap.timestamp}.json`);
+      fs.writeFileSync(file, JSON.stringify(snap));
+      this.prune();
+    } catch {
+      // Silently skip if storage is not writable
+    }
   }
 
   load(): CoverageSnapshot[] {
-    if (!fs.existsSync(this.dir)) return [];
-    const files = fs.readdirSync(this.dir)
-      .filter(f => f.startsWith('snap_') && f.endsWith('.json'))
-      .sort();
-    return files.map(f => JSON.parse(fs.readFileSync(path.join(this.dir, f), 'utf8')));
+    try {
+      if (!fs.existsSync(this.dir)) return [];
+      const files = fs.readdirSync(this.dir)
+        .filter(f => f.startsWith('snap_') && f.endsWith('.json'))
+        .sort();
+      return files.map(f => JSON.parse(fs.readFileSync(path.join(this.dir, f), 'utf8')));
+    } catch {
+      return [];
+    }
   }
 
   delta(): { linePercent: number; branchPercent: number } | null {
@@ -62,14 +69,18 @@ export class HistoryStore {
   }
 
   private prune(): void {
-    const vscode = require('vscode');
-    const cfg = vscode.workspace.getConfiguration('coverlens');
-    const max: number = cfg.get('history.maxSnapshots', 50);
-    const files = fs.readdirSync(this.dir)
-      .filter(f => f.startsWith('snap_') && f.endsWith('.json'))
-      .sort();
-    while (files.length > max) {
-      fs.unlinkSync(path.join(this.dir, files.shift()!));
+    try {
+      const vscode = require('vscode');
+      const cfg = vscode.workspace.getConfiguration('coverlens');
+      const max: number = cfg.get('history.maxSnapshots', 50);
+      const files = fs.readdirSync(this.dir)
+        .filter(f => f.startsWith('snap_') && f.endsWith('.json'))
+        .sort();
+      while (files.length > max) {
+        fs.unlinkSync(path.join(this.dir, files.shift()!));
+      }
+    } catch {
+      // Ignore cleanup errors
     }
   }
 }

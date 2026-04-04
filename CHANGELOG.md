@@ -2,7 +2,29 @@
 
 ## 0.2.0
 
+### New Features
+
 - Scrollbar coverage indicator with `coverlens.overviewRuler` setting (off by default)
+- Istanbul JSON format support (`coverage.json`, `coverage-final.json`)
+- Expanded default coverage file patterns (18 patterns)
+- Smart file path resolution with glob fallback
+- Tree view placeholder when no coverage data found
+
+### Bug Fixes
+
+- Fixed coverage not loading when `monorepo.enabled` is false
+- Fixed watcher not reacting to coverage file deletion
+- Fixed unhandled promise rejections in file watcher
+- Fixed `clearHistory` deleting without confirmation
+- Settings changes (`coverageFiles`, `excludePatterns`, `monorepo`) now auto-reload coverage
+- History store no longer crashes on permission errors
+
+### Improvements
+
+- Display modes changed to `border` (default) and `highlight`; removed gutter mode
+- Coverage history stored in VS Code global storage instead of workspace
+- Fixed problem matcher for webpack watch task
+- Updated icon, README, and marketplace metadata
 
 ## 0.1.1
 

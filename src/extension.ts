@@ -139,10 +139,30 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
       );
     }),
 
-    vscode.commands.registerCommand('coverlens.clearHistory', () => {
-      const historyDir = ctx.globalStorageUri.fsPath;
-      require('fs').rmSync(historyDir, { recursive: true, force: true });
-      vscode.window.showInformationMessage('CoverLens: history cleared.');
+    vscode.commands.registerCommand('coverlens.clearHistory', async () => {
+      const answer = await vscode.window.showWarningMessage(
+        'CoverLens: Delete all coverage history snapshots?',
+        { modal: true },
+        'Delete'
+      );
+      if (answer === 'Delete') {
+        const historyDir = ctx.globalStorageUri.fsPath;
+        require('fs').rmSync(historyDir, { recursive: true, force: true });
+        vscode.window.showInformationMessage('CoverLens: history cleared.');
+      }
+    })
+  );
+
+  // Reload coverage when relevant settings change
+  ctx.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration(e => {
+      if (
+        e.affectsConfiguration('coverlens.coverageFiles') ||
+        e.affectsConfiguration('coverlens.excludePatterns') ||
+        e.affectsConfiguration('coverlens.monorepo')
+      ) {
+        reload();
+      }
     })
   );
 

@@ -33,7 +33,14 @@ export class CoverageTreeProvider implements vscode.TreeDataProvider<CoverageTre
     }
 
     // Root: build folder tree from coverage map
-    return this.buildTree();
+    const tree = this.buildTree();
+    if (tree.length === 0) {
+      const placeholder = new vscode.TreeItem('No coverage data found');
+      placeholder.description = 'Run tests or check coverlens.coverageFiles setting';
+      placeholder.iconPath = new vscode.ThemeIcon('info');
+      return [placeholder as CoverageTreeItem];
+    }
+    return tree;
   }
 
   private buildTree(): CoverageTreeItem[] {

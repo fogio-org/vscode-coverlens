@@ -11,9 +11,8 @@ export class CoverageWatcher {
     workspaceRoot: string,
     onChange: OnChangeCallback
   ): Promise<void> {
-    this.stop();
+    await this.stop();
 
-    // Resolve globs to actual patterns
     const absGlobs = globs.map(g =>
       g.startsWith('/') ? g : `${workspaceRoot}/${g}`
     );
@@ -25,17 +24,17 @@ export class CoverageWatcher {
       awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 }
     });
 
-    this.watcher.on('change', async () => {
-      await onChange();
-    });
+    const safeOnChange = () => onChange().catch(() => {});
 
-    this.watcher.on('add', async () => {
-      await onChange();
-    });
+    this.watcher.on('change', safeOnChange);
+    this.watcher.on('add', safeOnChange);
+    this.watcher.on('unlink', safeOnChange);
   }
 
-  stop(): void {
-    this.watcher?.close();
-    this.watcher = undefined;
+  async stop(): Promise<void> {
+    if (this.watcher) {
+      await this.watcher.close();
+      this.watcher = undefined;
+    }
   }
 }
