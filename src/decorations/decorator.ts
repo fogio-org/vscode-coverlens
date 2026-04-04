@@ -43,7 +43,8 @@ export class CoverageDecorator {
       uncovered: cfg.get<string>('colors.uncovered', ''),
     };
 
-    const theme = buildTheme(style, colors);
+    const showOverviewRuler = cfg.get<boolean>('overviewRuler', false);
+    const theme = buildTheme(style, colors, showOverviewRuler);
     this.coveredType   = vscode.window.createTextEditorDecorationType(theme.covered);
     this.partialType   = vscode.window.createTextEditorDecorationType(theme.partial);
     this.uncoveredType = vscode.window.createTextEditorDecorationType(theme.uncovered);

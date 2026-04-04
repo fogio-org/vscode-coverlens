@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.0
+
+- Scrollbar coverage indicator with `coverlens.overviewRuler` setting (off by default)
+
 ## 0.1.1
 
 - Update README and package.json for improved visibility and versioning

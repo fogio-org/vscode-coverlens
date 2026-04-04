@@ -2,7 +2,7 @@
   "name": "coverlens",
   "displayName": "CoverLens",
   "description": "Three-state coverage lens with diff mode and monorepo support",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "publisher": "fogio",
   "icon": "assets/icon.png",
   "engines": {
@@ -169,6 +169,11 @@
           ],
           "default": "border",
           "description": "How to show coverage: 'border' = vertical bar on the left edge, 'highlight' = vertical bar + background fill"
+        },
+        "coverlens.overviewRuler": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show coverage colors in the scrollbar (overview ruler)"
         },
         "coverlens.diffMode": {
           "type": "boolean",

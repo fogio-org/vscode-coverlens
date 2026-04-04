@@ -138,6 +138,7 @@ Coverage from all packages is aggregated into one unified view. Configure manual
 | `coverlens.coverageFiles` | `["**/lcov.info", ...]` | Glob patterns to find coverage files |
 | `coverlens.excludePatterns` | `["**/node_modules/**", ...]` | Patterns to exclude from search |
 | `coverlens.decorationStyle` | `"border"` | Display mode: `"border"` or `"highlight"` |
+| `coverlens.overviewRuler` | `false` | Show coverage colors in the scrollbar |
 | `coverlens.colors.covered` | — | Custom color for covered lines |
 | `coverlens.colors.partial` | — | Custom color for partial branch lines |
 | `coverlens.colors.uncovered` | — | Custom color for uncovered lines |
