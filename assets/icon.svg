@@ -1,15 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
-  <!-- V3: Shield with three-state bars (centered) -->
-  <circle cx="128" cy="128" r="128" fill="#1a1b26"/>
+  <defs>
+    <linearGradient id="bg" x1="128" y1="0" x2="128" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3d3d3d"/>
+      <stop offset="100%" stop-color="#2d2d2d"/>
+    </linearGradient>
+  </defs>
 
-  <!-- Shield outline -->
-  <path d="M128 40 L188 66 L188 136 Q188 182 128 212 Q68 182 68 136 L68 66 Z"
-        fill="none" stroke="#565f89" stroke-width="4"/>
+  <!-- Background circle with subtle gradient -->
+  <circle cx="128" cy="128" r="128" fill="url(#bg)"/>
 
-  <!-- Coverage bars - vertically centered in shield -->
-  <rect x="94" y="82" width="56" height="8" rx="4" fill="#9ece6a"/>
-  <rect x="94" y="102" width="42" height="8" rx="4" fill="#9ece6a"/>
-  <rect x="94" y="122" width="50" height="8" rx="4" fill="#e0af68"/>
-  <rect x="94" y="142" width="36" height="8" rx="4" fill="#f7768e"/>
-  <rect x="94" y="162" width="48" height="8" rx="4" fill="#f7768e"/>
+  <!-- Shield with dark fill and thick grey outline -->
+  <path d="M128 38 L192 66 L192 140 Q192 186 128 218 Q64 186 64 140 L64 66 Z"
+        fill="#454545" stroke="#9e9e9e" stroke-width="8" stroke-linejoin="round"/>
+
+  <!-- Three coverage bars -->
+  <rect x="93" y="92" width="62" height="16" rx="8" fill="#6abf69"/>
+  <rect x="93" y="120" width="44" height="16" rx="8" fill="#e2b244"/>
+  <rect x="93" y="148" width="52" height="16" rx="8" fill="#e06060"/>
 </svg>
