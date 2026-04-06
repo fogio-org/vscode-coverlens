@@ -48,6 +48,19 @@ export async function parseJacoco(filePath: string, workspaceRoot: string): Prom
       fc.metrics.linePercent = fc.metrics.totalLines === 0 ? 100
         : Math.round((covered / fc.metrics.totalLines) * 100);
 
+      let totalBranches = 0, coveredBranches = 0, partialBranches = 0;
+      for (const bds of fc.branches.values()) {
+        totalBranches += bds.length;
+        const taken = bds.filter(b => b.taken > 0).length;
+        coveredBranches += taken;
+        if (taken > 0 && taken < bds.length) partialBranches++;
+      }
+      fc.metrics.totalBranches = totalBranches;
+      fc.metrics.coveredBranches = coveredBranches;
+      fc.metrics.partialBranches = partialBranches;
+      fc.metrics.branchPercent = totalBranches === 0 ? 100
+        : Math.round((coveredBranches / totalBranches) * 100);
+
       map.set(absPath, fc);
     }
   }
