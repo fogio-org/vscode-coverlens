@@ -186,6 +186,11 @@
           "default": true,
           "description": "Automatically run tests with coverage when a file is saved"
         },
+        "coverlens.showRunnerNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show progress notification while tests are running"
+        },
         "coverlens.diffMode": {
           "type": "boolean",
           "default": false,

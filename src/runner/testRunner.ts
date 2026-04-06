@@ -33,27 +33,34 @@ export class TestRunner {
 
     this.log.info(`Running: ${command}`);
 
-    await vscode.window.withProgress({
-      location: vscode.ProgressLocation.Notification,
-      title: 'CoverLens: running tests…',
-      cancellable: true
-    }, async (progress, token) => {
-      return new Promise<void>((resolve, reject) => {
-        const proc = cp.exec(command, { cwd: this.workspaceRoot }, (err, stdout, stderr) => {
-          if (err) {
-            this.log.error(stderr);
-            vscode.window.showErrorMessage(`CoverLens: tests failed. Check Output panel.`);
-            reject(err);
-          } else {
-            this.log.info('Tests completed. Coverage file updated.');
-            resolve();
-          }
-        });
+    const showNotifications = cfg.get<boolean>('showRunnerNotifications', true);
 
-        token.onCancellationRequested(() => {
-          proc.kill();
-          reject(new Error('Cancelled'));
-        });
+    if (showNotifications) {
+      await vscode.window.withProgress({
+        location: vscode.ProgressLocation.Notification,
+        title: 'CoverLens: running tests…',
+        cancellable: true
+      }, (progress, token) => this.exec(command, token));
+    } else {
+      await this.exec(command);
+    }
+  }
+
+  private exec(command: string, token?: vscode.CancellationToken): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const proc = cp.exec(command, { cwd: this.workspaceRoot }, (err, stdout, stderr) => {
+        if (err) {
+          this.log.error(stderr || err.message);
+          reject(err);
+        } else {
+          this.log.info('Tests completed. Coverage file updated.');
+          resolve();
+        }
+      });
+
+      token?.onCancellationRequested(() => {
+        proc.kill();
+        reject(new Error('Cancelled'));
       });
     });
   }
