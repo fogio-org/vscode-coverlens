@@ -175,6 +175,17 @@
           "default": false,
           "description": "Show coverage colors in the scrollbar (overview ruler)"
         },
+        "coverlens.onEdit": {
+          "type": "string",
+          "enum": ["hide", "dim", "keep"],
+          "default": "dim",
+          "description": "What to do with coverage when a file is edited: 'hide' = remove decorations, 'dim' = show faded, 'keep' = do nothing"
+        },
+        "coverlens.runOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically run tests with coverage when a file is saved"
+        },
         "coverlens.diffMode": {
           "type": "boolean",
           "default": false,

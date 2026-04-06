@@ -139,6 +139,8 @@ Coverage from all packages is aggregated into one unified view. Configure manual
 | `coverlens.excludePatterns` | `["**/node_modules/**", ...]` | Patterns to exclude from search |
 | `coverlens.decorationStyle` | `"border"` | Display mode: `"border"` or `"highlight"` |
 | `coverlens.overviewRuler` | `false` | Show coverage colors in the scrollbar |
+| `coverlens.onEdit` | `"dim"` | Stale coverage behavior: `"hide"`, `"dim"`, or `"keep"` |
+| `coverlens.runOnSave` | `true` | Auto-run tests with coverage on file save |
 | `coverlens.colors.covered` | — | Custom color for covered lines |
 | `coverlens.colors.partial` | — | Custom color for partial branch lines |
 | `coverlens.colors.uncovered` | — | Custom color for uncovered lines |

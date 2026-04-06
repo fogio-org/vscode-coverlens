@@ -166,6 +166,20 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
     })
   );
 
+  // Auto-run tests on save (if enabled)
+  let runOnSaveTimeout: ReturnType<typeof setTimeout> | undefined;
+  ctx.subscriptions.push(
+    vscode.workspace.onDidSaveTextDocument(() => {
+      if (!cfg().get<boolean>('runOnSave', false)) return;
+      // Debounce: wait 500ms after last save to avoid multiple runs
+      if (runOnSaveTimeout) clearTimeout(runOnSaveTimeout);
+      runOnSaveTimeout = setTimeout(async () => {
+        await runner.run();
+        await reload();
+      }, 500);
+    })
+  );
+
   // File watcher
   const globs   = cfg().get<string[]>('coverageFiles', ['**/lcov.info']);
   const exclude = cfg().get<string[]>('excludePatterns', ['**/node_modules/**']);
