@@ -2,14 +2,22 @@ import * as vscode from 'vscode';
 import * as cp from 'child_process';
 import { PRESETS, detectRunner } from './presets';
 import { Logger } from '../util/logger';
+import { ensureCoverageInGitignore } from '../util/gitignore';
 
 export class TestRunner {
+  private gitignoreChecked = false;
+
   constructor(
     private readonly workspaceRoot: string,
     private readonly log: Logger
   ) {}
 
   async run(): Promise<void> {
+    // On first run, check .gitignore
+    if (!this.gitignoreChecked) {
+      this.gitignoreChecked = true;
+      await ensureCoverageInGitignore(this.workspaceRoot);
+    }
     const cfg = vscode.workspace.getConfiguration('coverlens');
     let runnerKey = cfg.get<string>('testRunner', 'auto');
     const customCmd = cfg.get<string>('testRunner.customCommand', '');
