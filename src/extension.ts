@@ -27,7 +27,7 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
   const decorator  = new CoverageDecorator(ctx);
   const treeProvider = new CoverageTreeProvider(workspaceRoot);
   const statusBar  = new CoverageStatusBar();
-  const history    = new HistoryStore(ctx.globalStorageUri.fsPath, workspaceRoot);
+  const history    = new HistoryStore(workspaceRoot);
   const watcher    = new CoverageWatcher();
   const runner     = new TestRunner(workspaceRoot, log);
 
@@ -68,19 +68,22 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
       coverageMap = merged;
       decorator.setCoverage(coverageMap);
       treeProvider.setCoverage(coverageMap);
-      statusBar.update(coverageMap, decorator.isEnabled);
 
-      if (cfg().get<boolean>('history.enabled', true)) {
-        history.save(coverageMap);
-        const delta = history.delta();
-        if (delta) {
-          const sign = (n: number) => n >= 0 ? '+' : '';
-          log.info(`Coverage delta: lines ${sign(delta.linePercent)}${delta.linePercent}%, branches ${sign(delta.branchPercent)}${delta.branchPercent}%`);
+      // Update baseline (sets on first load or branch change)
+      await history.updateBaseline(coverageMap);
+
+      if (diffMode) {
+        // Reapply diff filter if active
+        await applyDiffFilter();
+      } else {
+        // Normal mode: delta vs session baseline
+        const delta = history.sessionDelta(coverageMap);
+        statusBar.update(coverageMap, decorator.isEnabled, null, delta);
+        if (delta != null) {
+          const sign = delta >= 0 ? '+' : '';
+          log.info(`Coverage delta vs session start: ${sign}${delta}%`);
         }
       }
-
-      // Reapply diff filter if active
-      if (diffMode) await applyDiffFilter();
 
     } catch (err) {
       log.error(`Reload failed: ${err}`);
@@ -95,7 +98,13 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
       currentDiffLines = changed;
       decorator.setDiffFilter(changed);
       statusBar.setDiffMode(true);
-      statusBar.update(coverageMap, decorator.isEnabled, changed);
+      // Diff delta: how your changes affect overall coverage
+      const delta = history.diffDelta(coverageMap, changed);
+      statusBar.update(coverageMap, decorator.isEnabled, changed, delta);
+      if (delta != null) {
+        const sign = delta >= 0 ? '+' : '';
+        log.info(`Coverage impact of changes: ${sign}${delta}%`);
+      }
     } catch (err) {
       log.warn(`git diff failed (not a git repo?): ${err}`);
       currentDiffLines = null;
@@ -110,7 +119,10 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
   ctx.subscriptions.push(
     vscode.commands.registerCommand('coverlens.toggle', () => {
       decorator.toggle();
-      statusBar.update(coverageMap, decorator.isEnabled, currentDiffLines);
+      const delta = currentDiffLines
+        ? history.diffDelta(coverageMap, currentDiffLines)
+        : history.sessionDelta(coverageMap);
+      statusBar.update(coverageMap, decorator.isEnabled, currentDiffLines, delta);
     }),
 
     vscode.commands.registerCommand('coverlens.toggleDiff', async () => {
@@ -121,7 +133,8 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
         currentDiffLines = null;
         decorator.setDiffFilter(null);
         statusBar.setDiffMode(false);
-        statusBar.update(coverageMap, decorator.isEnabled);
+        const delta = history.sessionDelta(coverageMap);
+        statusBar.update(coverageMap, decorator.isEnabled, null, delta);
       }
     }),
 
@@ -133,32 +146,25 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
     }),
 
     vscode.commands.registerCommand('coverlens.showHistory', () => {
-      const snaps = history.load();
-      if (!snaps.length) {
-        vscode.window.showInformationMessage('CoverLens: no history yet. Run tests first.');
+      if (coverageMap.size === 0) {
+        vscode.window.showInformationMessage('CoverLens: no coverage data loaded.');
         return;
       }
-      const latest = snaps[snaps.length - 1];
-      const delta = history.delta();
-      const deltaStr = delta
-        ? ` (${delta.linePercent >= 0 ? '+' : ''}${delta.linePercent}% vs previous)`
+      const delta = currentDiffLines
+        ? history.diffDelta(coverageMap, currentDiffLines)
+        : history.sessionDelta(coverageMap);
+      const totalLines   = [...coverageMap.values()].reduce((s, f) => s + f.metrics.totalLines, 0);
+      const coveredLines = [...coverageMap.values()].reduce((s, f) => s + f.metrics.coveredLines, 0);
+      const pct = totalLines === 0 ? 100 : Math.round((coveredLines / totalLines) * 100);
+      const deltaStr = delta != null
+        ? ` (${delta >= 0 ? '+' : ''}${delta}% vs ${currentDiffLines ? 'base' : 'session start'})`
         : '';
-      vscode.window.showInformationMessage(
-        `CoverLens history: ${snaps.length} snapshots. Latest: ${latest.totalLinePercent}%${deltaStr}`
-      );
+      vscode.window.showInformationMessage(`CoverLens: ${pct}% coverage${deltaStr}`);
     }),
 
-    vscode.commands.registerCommand('coverlens.clearHistory', async () => {
-      const answer = await vscode.window.showWarningMessage(
-        'CoverLens: Delete all coverage history snapshots?',
-        { modal: true },
-        'Delete'
-      );
-      if (answer === 'Delete') {
-        const historyDir = ctx.globalStorageUri.fsPath;
-        require('fs').rmSync(historyDir, { recursive: true, force: true });
-        vscode.window.showInformationMessage('CoverLens: history cleared.');
-      }
+    vscode.commands.registerCommand('coverlens.clearHistory', () => {
+      history.resetBaseline();
+      vscode.window.showInformationMessage('CoverLens: baseline reset.');
     })
   );
 

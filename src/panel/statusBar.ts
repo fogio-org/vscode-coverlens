@@ -35,7 +35,7 @@ export class CoverageStatusBar {
     this.refreshText();
   }
 
-  update(map: CoverageMap, enabled: boolean, diffLines?: Map<string, Set<number>> | null): void {
+  update(map: CoverageMap, enabled: boolean, diffLines?: Map<string, Set<number>> | null, delta?: number | null): void {
     if (map.size === 0) { this.setNoCoverage(); return; }
 
     let totalLines = 0;
@@ -60,7 +60,8 @@ export class CoverageStatusBar {
     const pct = totalLines === 0 ? 100 : Math.round((coveredLines / totalLines) * 100);
 
     const icon = enabled ? '$(shield)' : '$(shield-x)';
-    this._baseText = `${icon} ${pct}%`;
+    const deltaStr = delta != null ? ` (${delta >= 0 ? '+' : ''}${delta}%)` : '';
+    this._baseText = `${icon} ${pct}%${deltaStr}`;
     this.refreshText();
 
     if (pct < 50) {

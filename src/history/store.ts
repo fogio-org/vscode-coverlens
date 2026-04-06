@@ -1,86 +1,91 @@
-import * as crypto from 'crypto';
-import * as fs from 'fs';
-import * as path from 'path';
-import { CoverageMap, CoverageSnapshot } from '../coverage/types';
+import * as cp from 'child_process';
+import { CoverageMap } from '../coverage/types';
 
 export class HistoryStore {
-  private dir: string;
+  /** Coverage % captured at session start (or after branch change) */
+  private baselinePercent: number | null = null;
+  /** Git branch at the time baseline was set */
+  private baselineBranch: string | null = null;
 
-  constructor(globalStoragePath: string, workspaceRoot: string) {
-    const hash = crypto.createHash('sha256').update(workspaceRoot).digest('hex').slice(0, 12);
-    this.dir = path.join(globalStoragePath, 'history', hash);
-    try {
-      if (!fs.existsSync(this.dir)) fs.mkdirSync(this.dir, { recursive: true });
-    } catch {
-      // Storage not writable — history will be disabled
+  constructor(private readonly workspaceRoot: string) {}
+
+  /**
+   * Compute the total line coverage percentage for a map.
+   */
+  private static totalPercent(map: CoverageMap): number {
+    const totalLines   = [...map.values()].reduce((s, f) => s + f.metrics.totalLines, 0);
+    const coveredLines = [...map.values()].reduce((s, f) => s + f.metrics.coveredLines, 0);
+    return totalLines === 0 ? 100 : Math.round((coveredLines / totalLines) * 100);
+  }
+
+  /**
+   * Called on every reload. Sets baseline on first call or when branch changes.
+   */
+  async updateBaseline(map: CoverageMap): Promise<void> {
+    const branch = await getCurrentBranch(this.workspaceRoot);
+    const pct = HistoryStore.totalPercent(map);
+
+    if (this.baselinePercent === null || branch !== this.baselineBranch) {
+      this.baselinePercent = pct;
+      this.baselineBranch = branch;
     }
   }
 
-  save(map: CoverageMap): void {
-    try {
-      const totalLines   = [...map.values()].reduce((s, f) => s + f.metrics.totalLines, 0);
-      const coveredLines = [...map.values()].reduce((s, f) => s + f.metrics.coveredLines, 0);
-      const totalBranches   = [...map.values()].reduce((s, f) => s + f.metrics.totalBranches, 0);
-      const coveredBranches = [...map.values()].reduce((s, f) => s + f.metrics.coveredBranches, 0);
+  /**
+   * Normal mode delta: current coverage vs session baseline.
+   */
+  sessionDelta(map: CoverageMap): number | null {
+    if (this.baselinePercent === null) return null;
+    const current = HistoryStore.totalPercent(map);
+    const delta = current - this.baselinePercent;
+    return delta === 0 ? null : delta;
+  }
 
-      const snap: CoverageSnapshot = {
-        timestamp: Date.now(),
-        totalLinePercent:   totalLines   === 0 ? 100 : Math.round(coveredLines   / totalLines   * 100),
-        totalBranchPercent: totalBranches === 0 ? 100 : Math.round(coveredBranches / totalBranches * 100),
-        files: {}
-      };
+  /**
+   * Diff mode delta: how changed lines affect overall project coverage.
+   * Compares total coverage (all lines) vs coverage of unchanged lines only.
+   * Positive = your changes improved coverage, negative = reduced it.
+   */
+  diffDelta(map: CoverageMap, diffLines: Map<string, Set<number>>): number | null {
+    let allTotal = 0, allCovered = 0;
+    let unchangedTotal = 0, unchangedCovered = 0;
 
-      for (const [p, fc] of map) {
-        snap.files[p] = {
-          linePercent:   fc.metrics.linePercent,
-          branchPercent: fc.metrics.branchPercent
-        };
+    for (const [filePath, fc] of map) {
+      const changed = diffLines.get(filePath);
+
+      for (const [lineNo, hits] of fc.lines) {
+        allTotal++;
+        if (hits > 0) allCovered++;
+
+        const isChanged = changed?.has(lineNo) ?? false;
+        if (!isChanged) {
+          unchangedTotal++;
+          if (hits > 0) unchangedCovered++;
+        }
       }
-
-      const file = path.join(this.dir, `snap_${snap.timestamp}.json`);
-      fs.writeFileSync(file, JSON.stringify(snap));
-      this.prune();
-    } catch {
-      // Silently skip if storage is not writable
     }
+
+    const currentPct   = allTotal === 0 ? 100 : Math.round((allCovered / allTotal) * 100);
+    const unchangedPct = unchangedTotal === 0 ? 100 : Math.round((unchangedCovered / unchangedTotal) * 100);
+    const delta = currentPct - unchangedPct;
+
+    return delta === 0 ? null : delta;
   }
 
-  load(): CoverageSnapshot[] {
-    try {
-      if (!fs.existsSync(this.dir)) return [];
-      const files = fs.readdirSync(this.dir)
-        .filter(f => f.startsWith('snap_') && f.endsWith('.json'))
-        .sort();
-      return files.map(f => JSON.parse(fs.readFileSync(path.join(this.dir, f), 'utf8')));
-    } catch {
-      return [];
-    }
+  /**
+   * Force-reset the baseline (e.g. user command).
+   */
+  resetBaseline(): void {
+    this.baselinePercent = null;
+    this.baselineBranch = null;
   }
+}
 
-  delta(): { linePercent: number; branchPercent: number } | null {
-    const snaps = this.load();
-    if (snaps.length < 2) return null;
-    const prev = snaps[snaps.length - 2];
-    const curr = snaps[snaps.length - 1];
-    return {
-      linePercent:   curr.totalLinePercent   - prev.totalLinePercent,
-      branchPercent: curr.totalBranchPercent - prev.totalBranchPercent
-    };
-  }
-
-  private prune(): void {
-    try {
-      const vscode = require('vscode');
-      const cfg = vscode.workspace.getConfiguration('coverlens');
-      const max: number = cfg.get('history.maxSnapshots', 50);
-      const files = fs.readdirSync(this.dir)
-        .filter(f => f.startsWith('snap_') && f.endsWith('.json'))
-        .sort();
-      while (files.length > max) {
-        fs.unlinkSync(path.join(this.dir, files.shift()!));
-      }
-    } catch {
-      // Ignore cleanup errors
-    }
-  }
+function getCurrentBranch(workspaceRoot: string): Promise<string | null> {
+  return new Promise(resolve => {
+    cp.execFile('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: workspaceRoot }, (err, stdout) => {
+      if (err) { resolve(null); return; }
+      resolve(stdout.trim() || null);
+    });
+  });
 }

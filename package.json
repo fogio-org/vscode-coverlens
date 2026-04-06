@@ -56,12 +56,12 @@
       },
       {
         "command": "coverlens.showHistory",
-        "title": "CoverLens: Show Coverage History",
+        "title": "CoverLens: Show Coverage Summary",
         "icon": "$(graph)"
       },
       {
         "command": "coverlens.clearHistory",
-        "title": "CoverLens: Clear Coverage History"
+        "title": "CoverLens: Reset Coverage Baseline"
       }
     ],
     "views": {
@@ -244,15 +244,10 @@
           "default": [],
           "description": "Override monorepo package roots (leave empty for auto-detection from package.json/pnpm-workspace.yaml)"
         },
-        "coverlens.history.enabled": {
+        "coverlens.showDelta": {
           "type": "boolean",
           "default": true,
-          "description": "Store local coverage history in .coverlens/ for trend tracking"
-        },
-        "coverlens.history.maxSnapshots": {
-          "type": "number",
-          "default": 50,
-          "description": "Maximum number of historical snapshots to keep"
+          "description": "Show coverage delta in status bar (vs session start or vs base in diff mode)"
         }
       }
     }

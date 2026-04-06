@@ -31,12 +31,3 @@ export type LineState = 'covered' | 'partial' | 'uncovered' | 'ignored';
 
 /** Full project coverage map, keyed by normalized absolute file path */
 export type CoverageMap = Map<string, FileCoverage>;
-
-/** A snapshot saved to history */
-export interface CoverageSnapshot {
-  timestamp: number;
-  commitHash?: string;
-  totalLinePercent: number;
-  totalBranchPercent: number;
-  files: Record<string, { linePercent: number; branchPercent: number }>;
-}
