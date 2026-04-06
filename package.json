@@ -2,7 +2,7 @@
   "name": "coverlens",
   "displayName": "CoverLens",
   "description": "Three-state coverage lens with diff mode and monorepo support",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "fogio",
   "icon": "assets/icon.png",
   "engines": {

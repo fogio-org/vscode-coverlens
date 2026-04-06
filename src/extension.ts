@@ -72,12 +72,14 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
       // Update baseline (sets on first load or branch change)
       await history.updateBaseline(coverageMap);
 
+      const showDelta = cfg().get<boolean>('showDelta', true);
+
       if (diffMode) {
         // Reapply diff filter if active
         await applyDiffFilter();
       } else {
         // Normal mode: delta vs session baseline
-        const delta = history.sessionDelta(coverageMap);
+        const delta = showDelta ? history.sessionDelta(coverageMap) : null;
         statusBar.update(coverageMap, decorator.isEnabled, null, delta);
         if (delta != null) {
           const sign = delta >= 0 ? '+' : '';
@@ -93,13 +95,14 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
 
   async function applyDiffFilter(): Promise<void> {
     const base = cfg().get<string>('diffBase', 'HEAD');
+    const showDelta = cfg().get<boolean>('showDelta', true);
     try {
       const changed = await getChangedLines(workspaceRoot, base);
       currentDiffLines = changed;
       decorator.setDiffFilter(changed);
       statusBar.setDiffMode(true);
       // Diff delta: how your changes affect overall coverage
-      const delta = history.diffDelta(coverageMap, changed);
+      const delta = showDelta ? history.diffDelta(coverageMap, changed) : null;
       statusBar.update(coverageMap, decorator.isEnabled, changed, delta);
       if (delta != null) {
         const sign = delta >= 0 ? '+' : '';
@@ -119,8 +122,9 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
   ctx.subscriptions.push(
     vscode.commands.registerCommand('coverlens.toggle', () => {
       decorator.toggle();
-      const delta = currentDiffLines
-        ? history.diffDelta(coverageMap, currentDiffLines)
+      const showDelta = cfg().get<boolean>('showDelta', true);
+      const delta = !showDelta ? null
+        : currentDiffLines ? history.diffDelta(coverageMap, currentDiffLines)
         : history.sessionDelta(coverageMap);
       statusBar.update(coverageMap, decorator.isEnabled, currentDiffLines, delta);
     }),
@@ -133,7 +137,8 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
         currentDiffLines = null;
         decorator.setDiffFilter(null);
         statusBar.setDiffMode(false);
-        const delta = history.sessionDelta(coverageMap);
+        const showDelta = cfg().get<boolean>('showDelta', true);
+        const delta = showDelta ? history.sessionDelta(coverageMap) : null;
         statusBar.update(coverageMap, decorator.isEnabled, null, delta);
       }
     }),

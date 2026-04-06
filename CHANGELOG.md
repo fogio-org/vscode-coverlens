@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.3.0
+
+### New Features
+
+- **Stale coverage handling** — when a file is edited, coverage decorations can be hidden, dimmed, or kept (`coverlens.onEdit`: `hide` | `dim` | `keep`, default `dim`)
+- **Auto-run tests on save** — automatically run tests with coverage when a file is saved (`coverlens.runOnSave`, default `true`)
+- **Runner notification toggle** — option to hide progress notification while tests run (`coverlens.showRunnerNotifications`)
+- **Gitignore protection** — on first test run, prompts to add coverage file patterns to `.gitignore`
+- **Coverage delta in status bar** — shows how coverage changed vs session start (normal mode) or vs base branch (diff mode)
+- **Branch-aware baseline** — delta baseline automatically resets when git branch changes
+- **Diff mode delta** — in diff mode, delta shows how your changes affect overall project coverage
+
+### Bug Fixes
+
+- Fixed diff mode not filtering lines when there are no changes (showed all lines instead of none)
+- Fixed status bar losing `[diff]` indicator after toggling coverage on/off
+- Fixed git diff error not clearing diff mode indicator from status bar
+- Fixed Cobertura and JaCoCo parsers not computing branch coverage metrics (`branchPercent`, `totalBranches`)
+- Fixed shell injection vulnerability in `git diff` command — switched from `cp.exec` to `cp.execFile` with input validation
+
+### Improvements
+
+- Replaced file-based coverage snapshots with lightweight session baseline tracking
+- Delta in diff mode compares total coverage vs coverage of unchanged lines only
+- Removed `coverlens.history.enabled` and `coverlens.history.maxSnapshots` settings
+- Added `coverlens.showDelta` setting to toggle delta display in status bar
+- Commands renamed: "Show Coverage History" → "Show Coverage Summary", "Clear Coverage History" → "Reset Coverage Baseline"
+
 ## 0.2.0
 
 ### New Features

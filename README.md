@@ -127,8 +127,8 @@ Coverage from all packages is aggregated into one unified view. Configure manual
 | CoverLens: Toggle Diff Mode | Switch between all-lines and changed-lines view |
 | CoverLens: Run Tests with Coverage | Execute test runner and reload coverage |
 | CoverLens: Reload Coverage Files | Re-read coverage files from disk |
-| CoverLens: Show Coverage History | Display trend summary (latest %, delta) |
-| CoverLens: Clear Coverage History | Delete all stored snapshots |
+| CoverLens: Show Coverage Summary | Display current coverage % and delta |
+| CoverLens: Reset Coverage Baseline | Reset the session baseline for delta tracking |
 
 ## Settings
 
@@ -153,8 +153,7 @@ Coverage from all packages is aggregated into one unified view. Configure manual
 | `coverlens.monorepo.packages` | `[]` | Manual package glob patterns |
 | `coverlens.thresholds.low` | `50` | Below this % coverage → red icon in tree |
 | `coverlens.thresholds.medium` | `80` | Below this % coverage → yellow icon in tree |
-| `coverlens.history.enabled` | `true` | Track coverage snapshots locally |
-| `coverlens.history.maxSnapshots` | `50` | Max number of stored snapshots |
+| `coverlens.showDelta` | `true` | Show coverage delta in status bar |
 
 ## Default Coverage File Patterns
 
