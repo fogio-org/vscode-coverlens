@@ -8,9 +8,14 @@ export async function getChangedLines(
   base: string
 ): Promise<Map<string, Set<number>>> {
   return new Promise((resolve, reject) => {
+    // Validate base ref to prevent shell injection
+    if (!/^[\w.\/\-~@^{}]+$/.test(base)) {
+      reject(new Error(`Invalid diffBase ref: "${base}"`));
+      return;
+    }
     // git diff --unified=0 shows only changed lines with no context
-    cp.exec(
-      `git diff --unified=0 ${base}`,
+    cp.execFile(
+      'git', ['diff', '--unified=0', base],
       { cwd: workspaceRoot },
       (err, stdout, stderr) => {
         if (err) { reject(new Error(stderr || err.message)); return; }

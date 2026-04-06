@@ -33,6 +33,7 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
 
   let coverageMap: CoverageMap = new Map();
   let diffMode = cfg().get<boolean>('diffMode', false);
+  let currentDiffLines: Map<string, Set<number>> | null = null;
 
   // Register tree view
   const treeView = vscode.window.createTreeView('coverlens.tree', {
@@ -91,11 +92,17 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
     const base = cfg().get<string>('diffBase', 'HEAD');
     try {
       const changed = await getChangedLines(workspaceRoot, base);
+      currentDiffLines = changed;
       decorator.setDiffFilter(changed);
       statusBar.setDiffMode(true);
+      statusBar.update(coverageMap, decorator.isEnabled, changed);
     } catch (err) {
       log.warn(`git diff failed (not a git repo?): ${err}`);
+      currentDiffLines = null;
       decorator.setDiffFilter(null);
+      statusBar.setDiffMode(false);
+      statusBar.update(coverageMap, decorator.isEnabled);
+      diffMode = false;
     }
   }
 
@@ -103,7 +110,7 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
   ctx.subscriptions.push(
     vscode.commands.registerCommand('coverlens.toggle', () => {
       decorator.toggle();
-      statusBar.update(coverageMap, decorator.isEnabled);
+      statusBar.update(coverageMap, decorator.isEnabled, currentDiffLines);
     }),
 
     vscode.commands.registerCommand('coverlens.toggleDiff', async () => {
@@ -111,8 +118,10 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
       if (diffMode) {
         await applyDiffFilter();
       } else {
+        currentDiffLines = null;
         decorator.setDiffFilter(null);
         statusBar.setDiffMode(false);
+        statusBar.update(coverageMap, decorator.isEnabled);
       }
     }),
 

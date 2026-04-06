@@ -173,7 +173,10 @@ export class CoverageDecorator {
     editor.setDecorations(clearPar, []);
     editor.setDecorations(clearUnc, []);
 
-    const allowedLines = this.diffLines?.get(filePath) ?? null;
+    // Diff filter: null = diff mode off; Map = diff mode on
+    // If diff mode on but file not in diff → no lines to show
+    const diffActive = this.diffLines !== null;
+    const allowedLines = diffActive ? (this.diffLines!.get(filePath) ?? new Set<number>()) : null;
 
     const covered: vscode.Range[] = [];
     const partial: vscode.Range[] = [];
