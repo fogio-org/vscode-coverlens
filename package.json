@@ -188,7 +188,7 @@
         },
         "coverlens.showRunnerNotifications": {
           "type": "boolean",
-          "default": true,
+          "default": false,
           "description": "Show progress notification while tests are running"
         },
         "coverlens.diffMode": {
