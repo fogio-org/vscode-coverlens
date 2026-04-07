@@ -196,7 +196,7 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
       runOnSaveTimeout = setTimeout(async () => {
         await runner.run();
         await reload();
-      }, 500);
+      }, 1000);
     })
   );
 
