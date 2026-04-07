@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.4.0
+
+### New Features
+
+- **Scoped test runs** — on save, runs tests only for the affected package/directory instead of the full suite (Go, Jest, Vitest, pytest)
+- **Go coverage merge** — scoped Go test runs write to a temporary profile and merge into the main `coverage.out`, preserving full project coverage
+- **Status bar spinner** — animated indicator while tests are running, decorations dim automatically
+- **Click status bar to run tests** — clicking the coverage % in the status bar triggers a full test suite run
+- **Full test run on startup** — initial activation runs the complete test suite (when `runOnSave` is enabled)
+
+### Bug Fixes
+
+- Fixed Go scoped test run overwriting full `coverage.out` with partial data — overall coverage % no longer drops after editing a single package
+- Fixed test failures (exit code 1) blocking coverage merge — Go tests that fail still produce valid coverage data which is now processed
+- Fixed tree view thresholds not updating when `coverlens.thresholds` settings change
+- Fixed tree provider EventEmitter not disposed on extension deactivation
+- Fixed `runOnSave` timeout not cleared on deactivation — prevented stale callbacks on disposed runner
+- Fixed watcher firing unnecessary reload on startup (`ignoreInitial` changed to `true`)
+- Fixed monorepo reload failing entirely when one package has a corrupted coverage file
+- Removed dead `onDidSaveTextDocument` handler in decorator
+
+### Improvements
+
+- Test runner abort sends SIGTERM with SIGKILL fallback after 2 seconds
+- Scoped run debounce: 1 second after last save
+- Runner exposes `onRunningChanged` event for UI reactivity
+- `showRunnerNotifications` now defaults to `false`
+
 ## 0.3.0
 
 ### New Features

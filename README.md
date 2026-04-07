@@ -17,11 +17,13 @@
 - **Two display modes** — minimal left border or border + background highlight
 - **No gutter conflicts** — uses line decorations instead of gutter icons, so coverage display never interferes with debugger breakpoints
 - **Diff mode** — show coverage only on lines changed vs a base branch
-- **Built-in test runner** — run tests with coverage in one click
+- **Built-in test runner** — run tests with coverage in one click; scoped runs for changed packages
+- **Smart auto-run** — on save, runs tests only for the affected package (Go, Jest, Vitest, pytest)
+- **Coverage delta** — shows coverage change vs session start or vs base branch in diff mode
+- **Stale coverage** — dims or hides decorations while tests run or after edits
 - **Monorepo support** — auto-detects pnpm/npm/yarn workspaces, aggregates coverage
-- **Coverage history** — tracks trends locally across test runs
 - **Explorer panel** — tree view with per-file coverage percentages and threshold icons
-- **Status bar** — project-wide coverage percentage always visible
+- **Status bar** — project-wide coverage %, spinner during test runs, click to run full tests
 - **Auto-reload** — watches coverage files and updates decorations on change
 
 ## Supported Languages & Formats
@@ -141,7 +143,7 @@ Coverage from all packages is aggregated into one unified view. Configure manual
 | `coverlens.overviewRuler` | `false` | Show coverage colors in the scrollbar |
 | `coverlens.onEdit` | `"dim"` | Stale coverage behavior: `"hide"`, `"dim"`, or `"keep"` |
 | `coverlens.runOnSave` | `true` | Auto-run tests with coverage on file save |
-| `coverlens.showRunnerNotifications` | `true` | Show progress notification while tests run |
+| `coverlens.showRunnerNotifications` | `false` | Show progress notification while tests run |
 | `coverlens.colors.covered` | — | Custom color for covered lines |
 | `coverlens.colors.partial` | — | Custom color for partial branch lines |
 | `coverlens.colors.uncovered` | — | Custom color for uncovered lines |
