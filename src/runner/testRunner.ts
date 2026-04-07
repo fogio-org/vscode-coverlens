@@ -6,11 +6,35 @@ import { ensureCoverageInGitignore } from '../util/gitignore';
 
 export class TestRunner {
   private gitignoreChecked = false;
+  private activeProc: cp.ChildProcess | null = null;
 
   constructor(
     private readonly workspaceRoot: string,
     private readonly log: Logger
   ) {}
+
+  /**
+   * Cancel the currently running test process, if any.
+   * Sends SIGTERM first, then SIGKILL after 2s if still alive.
+   */
+  abort(): void {
+    if (!this.activeProc || this.activeProc.exitCode !== null) {
+      this.activeProc = null;
+      return;
+    }
+
+    const proc = this.activeProc;
+    this.log.info('Aborting previous test run…');
+    proc.kill('SIGTERM');
+
+    // Force-kill after 2 seconds if process didn't exit
+    const forceKill = setTimeout(() => {
+      try { proc.kill('SIGKILL'); } catch { /* already dead */ }
+    }, 2000);
+
+    proc.once('exit', () => clearTimeout(forceKill));
+    this.activeProc = null;
+  }
 
   async run(): Promise<void> {
     // On first run, check .gitignore
@@ -41,7 +65,7 @@ export class TestRunner {
 
     this.log.info(`Running: ${command}`);
 
-    const showNotifications = cfg.get<boolean>('showRunnerNotifications', true);
+    const showNotifications = cfg.get<boolean>('showRunnerNotifications', false);
 
     if (showNotifications) {
       await vscode.window.withProgress({
@@ -57,7 +81,16 @@ export class TestRunner {
   private exec(command: string, token?: vscode.CancellationToken): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       const proc = cp.exec(command, { cwd: this.workspaceRoot }, (err, stdout, stderr) => {
+        // Clear reference when process ends
+        if (this.activeProc === proc) this.activeProc = null;
+
         if (err) {
+          // Don't treat abort as an error
+          if ((err as any).killed || err.message === 'Cancelled') {
+            this.log.info('Test run aborted.');
+            resolve();
+            return;
+          }
           this.log.error(stderr || err.message);
           reject(err);
         } else {
@@ -66,9 +99,11 @@ export class TestRunner {
         }
       });
 
+      this.activeProc = proc;
+
       token?.onCancellationRequested(() => {
-        proc.kill();
-        reject(new Error('Cancelled'));
+        this.abort();
+        resolve();
       });
     });
   }

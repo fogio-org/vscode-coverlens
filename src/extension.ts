@@ -194,6 +194,7 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
       // Debounce: wait 500ms after last save to avoid multiple runs
       if (runOnSaveTimeout) clearTimeout(runOnSaveTimeout);
       runOnSaveTimeout = setTimeout(async () => {
+        runner.abort();
         await runner.run();
         await reload();
       }, 1000);
