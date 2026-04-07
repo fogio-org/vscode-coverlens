@@ -1,9 +1,10 @@
 import * as vscode from 'vscode';
 import * as cp from 'child_process';
 import * as path from 'path';
-import { PRESETS, detectRunner } from './presets';
+import { PRESETS, RunnerPreset, detectRunner } from './presets';
 import { Logger } from '../util/logger';
 import { ensureCoverageInGitignore } from '../util/gitignore';
+import { mergeGoCoverProfiles } from './mergeProfiles';
 
 export class TestRunner {
   private gitignoreChecked = false;
@@ -71,17 +72,40 @@ export class TestRunner {
     // Compute relative directory of the changed file
     const relDir = path.relative(this.workspaceRoot, path.dirname(filePath));
     if (!relDir || relDir.startsWith('..')) {
-      // File is outside workspace — full run
       await this.execute(preset.command);
       return;
     }
 
     const scopedCmd = preset.scopedCommand(relDir);
     this.log.info(`Scoped run for package: ${relDir}`);
-    await this.execute(scopedCmd);
+    try {
+      await this.execute(scopedCmd);
+    } catch {
+      // Tests may fail but still produce coverage data — continue to merge
+    }
+
+    // Merge partial coverage into main file if needed
+    if (preset.scopedOutput) {
+      await this.mergeScoped(preset);
+    }
   }
 
-  private async resolveRunner(): Promise<{ runnerKey: string; preset: typeof PRESETS[string] | null; customCmd: string }> {
+  /** Merge scoped coverage output into the main coverage file */
+  private async mergeScoped(preset: RunnerPreset): Promise<void> {
+    if (!preset.scopedOutput) return;
+    try {
+      await mergeGoCoverProfiles(
+        this.workspaceRoot,
+        preset.outputGlob,
+        preset.scopedOutput
+      );
+      this.log.info('Merged scoped coverage into main profile.');
+    } catch (err) {
+      this.log.error(`Failed to merge coverage profiles: ${err}`);
+    }
+  }
+
+  private async resolveRunner(): Promise<{ runnerKey: string; preset: RunnerPreset | null; customCmd: string }> {
     const cfg = vscode.workspace.getConfiguration('coverlens');
     let runnerKey = cfg.get<string>('testRunner', 'auto');
     const customCmd = cfg.get<string>('testRunner.customCommand', '');

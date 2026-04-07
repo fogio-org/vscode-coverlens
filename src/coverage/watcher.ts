@@ -19,7 +19,7 @@ export class CoverageWatcher {
 
     this.watcher = chokidar.watch(absGlobs, {
       ignored: excludePatterns,
-      ignoreInitial: false,
+      ignoreInitial: true,
       persistent: true,
       awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 }
     });

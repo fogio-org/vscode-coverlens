@@ -4,6 +4,8 @@ export interface RunnerPreset {
   command: string;
   /** Command template for running tests scoped to a specific directory/package */
   scopedCommand?: (relativeDir: string) => string;
+  /** If scoped run writes to a separate file, specify it here for merging */
+  scopedOutput?: string;
   /** Expected coverage output glob (relative to workspace root) */
   outputGlob: string;
 }
@@ -30,7 +32,8 @@ export const PRESETS: Record<string, RunnerPreset> = {
   go: {
     name: 'Go test',
     command: 'go test ./... -coverprofile=coverage.out',
-    scopedCommand: (dir) => `go test ./${dir}/... -coverprofile=coverage.out`,
+    scopedCommand: (dir) => `go test ./${dir}/... -coverprofile=coverage.out.partial`,
+    scopedOutput: 'coverage.out.partial',
     outputGlob: 'coverage.out'
   },
   cargo: {

@@ -9,9 +9,23 @@ export class CoverageTreeProvider implements vscode.TreeDataProvider<CoverageTre
   private coverageMap: CoverageMap = new Map();
   private workspaceRoot: string;
   private thresholds = { low: 50, medium: 80 };
+  private disposables: vscode.Disposable[] = [];
 
   constructor(workspaceRoot: string) {
     this.workspaceRoot = workspaceRoot;
+    this.readThresholds();
+
+    this.disposables.push(
+      vscode.workspace.onDidChangeConfiguration(e => {
+        if (e.affectsConfiguration('coverlens.thresholds')) {
+          this.readThresholds();
+          this._onDidChangeTreeData.fire(null);
+        }
+      })
+    );
+  }
+
+  private readThresholds(): void {
     const cfg = vscode.workspace.getConfiguration('coverlens');
     this.thresholds.low    = cfg.get<number>('thresholds.low',    50);
     this.thresholds.medium = cfg.get<number>('thresholds.medium', 80);
@@ -108,6 +122,7 @@ export class CoverageTreeProvider implements vscode.TreeDataProvider<CoverageTre
 
   dispose(): void {
     this._onDidChangeTreeData.dispose();
+    this.disposables.forEach(d => d.dispose());
   }
 }
 

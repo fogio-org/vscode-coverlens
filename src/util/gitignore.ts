@@ -7,6 +7,7 @@ const COVERAGE_PATTERNS = [
   'coverage/',
   'lcov.info',
   'coverage.out',
+  'coverage.out.partial',
   '*.coverprofile',
   'coverage.xml',
   'coverage.cobertura.xml',

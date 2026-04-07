@@ -66,8 +66,12 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
 
       const merged: CoverageMap = new Map();
       for (const pkg of packages) {
-        const partial = await loadCoverage(globs, exclude, pkg, log);
-        for (const [k, v] of partial) merged.set(k, v);
+        try {
+          const partial = await loadCoverage(globs, exclude, pkg, log);
+          for (const [k, v] of partial) merged.set(k, v);
+        } catch (err) {
+          log.warn(`Failed to load coverage for ${pkg}: ${err}`);
+        }
       }
 
       coverageMap = merged;
@@ -125,10 +129,10 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
     try {
       runner.abort();
       await runner.run();
-      await reload();
-    } catch (err) {
-      log.error(`Test run failed: ${err}`);
+    } catch {
+      // Tests may fail but still produce coverage
     }
+    await reload();
   }
 
   // Commands
@@ -207,10 +211,10 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
         try {
           runner.abort();
           await runner.runScoped(filePath);
-          await reload();
         } catch (err) {
           log.error(`Scoped test run failed: ${err}`);
         }
+        await reload();
       }, 1000);
     })
   );
@@ -225,8 +229,10 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
     decorator,
     statusBar,
     treeView,
+    treeProvider,
     { dispose: () => runner.dispose() },
     { dispose: () => watcher.stop() },
+    { dispose: () => { if (runOnSaveTimeout) clearTimeout(runOnSaveTimeout); } },
     { dispose: () => log.dispose() }
   );
 

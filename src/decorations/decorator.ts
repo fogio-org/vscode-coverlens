@@ -51,14 +51,6 @@ export class CoverageDecorator {
             }
           }
         }
-      }),
-
-      // When file is saved, keep it dirty (coverage is still stale)
-      // It becomes clean only when new coverage data arrives via setCoverage()
-
-      // When file reverts to clean (undo all changes), remove dirty flag
-      vscode.workspace.onDidSaveTextDocument(() => {
-        // Save doesn't make coverage fresh — only new coverage data does
       })
     );
   }
