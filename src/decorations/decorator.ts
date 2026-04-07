@@ -18,6 +18,7 @@ export class CoverageDecorator {
   private coverageMap: CoverageMap = new Map();
   private diffLines: Map<string, Set<number>> | null = null;
   private dirtyFiles: Set<string> = new Set();
+  private _allStale = false;
 
   constructor(private readonly ctx: vscode.ExtensionContext) {
     this.createDecorationTypes();
@@ -99,6 +100,13 @@ export class CoverageDecorator {
     this.coverageMap = map;
     // New coverage data arrived — all files are fresh again
     this.dirtyFiles.clear();
+    this._allStale = false;
+    if (this.enabled) this.applyToAllEditors();
+  }
+
+  /** Mark all coverage as stale (e.g. tests are running) */
+  setStale(stale: boolean): void {
+    this._allStale = stale;
     if (this.enabled) this.applyToAllEditors();
   }
 
@@ -150,17 +158,17 @@ export class CoverageDecorator {
     }
 
     const cfg = vscode.workspace.getConfiguration('coverlens');
-    const onEdit = cfg.get<'hide' | 'dim' | 'keep'>('onEdit', 'hide');
-    const isDirty = this.dirtyFiles.has(filePath);
+    const onEdit = cfg.get<'hide' | 'dim' | 'keep'>('onEdit', 'dim');
+    const isStale = this._allStale || this.dirtyFiles.has(filePath);
 
-    // If file is dirty and mode is "hide", clear all decorations
-    if (isDirty && onEdit === 'hide') {
+    // Stale coverage: respect onEdit setting
+    if (isStale && onEdit === 'hide') {
       this.clearEditor(editor);
       return;
     }
 
     // Choose normal or dimmed decoration types
-    const useDim = isDirty && onEdit === 'dim';
+    const useDim = isStale && onEdit === 'dim';
     const covType   = useDim ? this.coveredDimType   : this.coveredType;
     const parType   = useDim ? this.partialDimType   : this.partialType;
     const uncType   = useDim ? this.uncoveredDimType  : this.uncoveredType;

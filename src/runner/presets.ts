@@ -1,7 +1,9 @@
 export interface RunnerPreset {
   name: string;
-  /** Shell command that runs tests and outputs a coverage file */
+  /** Shell command that runs ALL tests and outputs a coverage file */
   command: string;
+  /** Command template for running tests scoped to a specific directory/package */
+  scopedCommand?: (relativeDir: string) => string;
   /** Expected coverage output glob (relative to workspace root) */
   outputGlob: string;
 }
@@ -10,21 +12,25 @@ export const PRESETS: Record<string, RunnerPreset> = {
   jest: {
     name: 'Jest',
     command: 'npx jest --coverage --coverageReporters=lcov',
+    scopedCommand: (dir) => `npx jest --coverage --coverageReporters=lcov --testPathPattern="${dir}"`,
     outputGlob: 'coverage/lcov.info'
   },
   vitest: {
     name: 'Vitest',
     command: 'npx vitest run --coverage --coverage.reporter=lcov',
+    scopedCommand: (dir) => `npx vitest run --coverage --coverage.reporter=lcov --dir "${dir}"`,
     outputGlob: 'coverage/lcov.info'
   },
   pytest: {
     name: 'pytest',
     command: 'python -m pytest --cov=. --cov-report=lcov:lcov.info',
+    scopedCommand: (dir) => `python -m pytest "${dir}" --cov=. --cov-report=lcov:lcov.info`,
     outputGlob: 'lcov.info'
   },
   go: {
     name: 'Go test',
     command: 'go test ./... -coverprofile=coverage.out',
+    scopedCommand: (dir) => `go test ./${dir}/... -coverprofile=coverage.out`,
     outputGlob: 'coverage.out'
   },
   cargo: {

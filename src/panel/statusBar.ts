@@ -5,11 +5,12 @@ export class CoverageStatusBar {
   private item: vscode.StatusBarItem;
   private _baseText = '$(shield) Coverage…';
   private _diffMode = false;
+  private _running = false;
 
   constructor() {
     this.item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-    this.item.command = 'coverlens.toggle';
-    this.item.tooltip = 'CoverLens: click to toggle coverage display';
+    this.item.command = 'coverlens.runWithCoverage';
+    this.item.tooltip = 'CoverLens: click to run all tests with coverage';
     this.item.show();
     this.setLoading();
   }
@@ -26,8 +27,22 @@ export class CoverageStatusBar {
     this.item.backgroundColor = undefined;
   }
 
+  setRunning(running: boolean): void {
+    this._running = running;
+    this.refreshText();
+  }
+
   private refreshText(): void {
-    this.item.text = this._diffMode ? `${this._baseText} [diff]` : this._baseText;
+    let text = this._baseText;
+    if (this._diffMode) text += ' [diff]';
+    if (this._running) {
+      // Replace the shield icon with a spinner
+      text = text.replace(/\$\(shield[^)]*\)/, '$(sync~spin)');
+    }
+    this.item.text = text;
+    this.item.tooltip = this._running
+      ? 'CoverLens: tests running…'
+      : 'CoverLens: click to run all tests with coverage';
   }
 
   setDiffMode(enabled: boolean): void {
@@ -42,7 +57,6 @@ export class CoverageStatusBar {
     let coveredLines = 0;
 
     if (diffLines) {
-      // Diff mode: count only changed lines that have coverage data
       for (const [filePath, fc] of map) {
         const changed = diffLines.get(filePath);
         if (!changed || changed.size === 0) continue;

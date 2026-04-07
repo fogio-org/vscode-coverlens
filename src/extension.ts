@@ -35,6 +35,12 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
   let diffMode = cfg().get<boolean>('diffMode', false);
   let currentDiffLines: Map<string, Set<number>> | null = null;
 
+  // Reflect runner state: spinner in status bar + dim decorations
+  runner.onRunningChanged(running => {
+    statusBar.setRunning(running);
+    decorator.setStale(running);
+  });
+
   // Register tree view
   const treeView = vscode.window.createTreeView('coverlens.tree', {
     treeDataProvider: treeProvider,
@@ -43,7 +49,7 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
 
   /** Core reload function — called by watcher and by commands */
   async function reload(): Promise<void> {
-    statusBar.setLoading();
+    if (!runner.isRunning) statusBar.setLoading();
     try {
       const globs   = cfg().get<string[]>('coverageFiles', ['**/lcov.info']);
       const exclude = cfg().get<string[]>('excludePatterns', ['**/node_modules/**']);
@@ -54,7 +60,6 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
       if (monorepoEnabled && !packages.length) {
         packages = await detectPackages(workspaceRoot);
       }
-      // Fallback: always include workspace root if no packages resolved
       if (!packages.length) {
         packages = [workspaceRoot];
       }
@@ -75,10 +80,8 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
       const showDelta = cfg().get<boolean>('showDelta', true);
 
       if (diffMode) {
-        // Reapply diff filter if active
         await applyDiffFilter();
       } else {
-        // Normal mode: delta vs session baseline
         const delta = showDelta ? history.sessionDelta(coverageMap) : null;
         statusBar.update(coverageMap, decorator.isEnabled, null, delta);
         if (delta != null) {
@@ -101,7 +104,6 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
       currentDiffLines = changed;
       decorator.setDiffFilter(changed);
       statusBar.setDiffMode(true);
-      // Diff delta: how your changes affect overall coverage
       const delta = showDelta ? history.diffDelta(coverageMap, changed) : null;
       statusBar.update(coverageMap, decorator.isEnabled, changed, delta);
       if (delta != null) {
@@ -115,6 +117,17 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
       statusBar.setDiffMode(false);
       statusBar.update(coverageMap, decorator.isEnabled);
       diffMode = false;
+    }
+  }
+
+  /** Run full test suite + reload */
+  async function runFullTests(): Promise<void> {
+    try {
+      runner.abort();
+      await runner.run();
+      await reload();
+    } catch (err) {
+      log.error(`Test run failed: ${err}`);
     }
   }
 
@@ -145,10 +158,7 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
 
     vscode.commands.registerCommand('coverlens.refresh', () => reload()),
 
-    vscode.commands.registerCommand('coverlens.runWithCoverage', async () => {
-      await runner.run();
-      await reload();
-    }),
+    vscode.commands.registerCommand('coverlens.runWithCoverage', () => runFullTests()),
 
     vscode.commands.registerCommand('coverlens.showHistory', () => {
       if (coverageMap.size === 0) {
@@ -186,17 +196,21 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
     })
   );
 
-  // Auto-run tests on save (if enabled)
+  // Auto-run scoped tests on save (if enabled)
   let runOnSaveTimeout: ReturnType<typeof setTimeout> | undefined;
   ctx.subscriptions.push(
-    vscode.workspace.onDidSaveTextDocument(() => {
+    vscode.workspace.onDidSaveTextDocument((doc) => {
       if (!cfg().get<boolean>('runOnSave', false)) return;
-      // Debounce: wait 500ms after last save to avoid multiple runs
+      const filePath = doc.uri.fsPath;
       if (runOnSaveTimeout) clearTimeout(runOnSaveTimeout);
       runOnSaveTimeout = setTimeout(async () => {
-        runner.abort();
-        await runner.run();
-        await reload();
+        try {
+          runner.abort();
+          await runner.runScoped(filePath);
+          await reload();
+        } catch (err) {
+          log.error(`Scoped test run failed: ${err}`);
+        }
       }, 1000);
     })
   );
@@ -211,14 +225,20 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
     decorator,
     statusBar,
     treeView,
+    { dispose: () => runner.dispose() },
     { dispose: () => watcher.stop() },
     { dispose: () => log.dispose() }
   );
 
-  // Initial load
+  // Initial load: enable decorations, run full tests, show coverage
   if (cfg().get<boolean>('enabled', true)) {
     decorator.enable();
+    // First try to show existing coverage files
     await reload();
+    // Then run full test suite if runOnSave is enabled
+    if (cfg().get<boolean>('runOnSave', false)) {
+      runFullTests(); // fire-and-forget — don't block activation
+    }
   }
 
   log.info('CoverLens activated.');
