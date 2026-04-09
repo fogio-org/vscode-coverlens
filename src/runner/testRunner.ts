@@ -22,10 +22,6 @@ export class TestRunner {
     private readonly log: Logger
   ) {}
 
-  /**
-   * Cancel the currently running test process, if any.
-   * Sends SIGTERM first, then SIGKILL after 2s if still alive.
-   */
   abort(): void {
     if (!this.activeProc || this.activeProc.exitCode !== null) {
       this.activeProc = null;
@@ -46,51 +42,66 @@ export class TestRunner {
 
   /** Run full test suite */
   async run(): Promise<void> {
-    const command = await this.resolveCommand();
-    if (!command) return;
-    await this.execute(command);
+    this.setRunning(true);
+    try {
+      const command = await this.resolveCommand();
+      if (!command) return;
+      await this.execute(command);
+    } finally {
+      this.setRunning(false);
+    }
   }
 
   /** Run tests scoped to the package/directory containing the given file */
   async runScoped(filePath: string): Promise<void> {
-    const { runnerKey, preset, customCmd } = await this.resolveRunner();
-
-    // Custom command — always full run
-    if (runnerKey === 'custom' && customCmd) {
-      await this.execute(customCmd);
-      return;
-    }
-
-    if (!preset) return;
-
-    // If preset has no scoped command, fall back to full run
-    if (!preset.scopedCommand) {
-      await this.execute(preset.command);
-      return;
-    }
-
-    // Compute relative directory of the changed file
-    const relDir = path.relative(this.workspaceRoot, path.dirname(filePath));
-    if (!relDir || relDir.startsWith('..')) {
-      await this.execute(preset.command);
-      return;
-    }
-
-    const scopedCmd = preset.scopedCommand(relDir);
-    this.log.info(`Scoped run for package: ${relDir}`);
+    this.setRunning(true);
     try {
-      await this.execute(scopedCmd);
-    } catch {
-      // Tests may fail but still produce coverage data — continue to merge
-    }
+      const { runnerKey, preset, customCmd } = await this.resolveRunner();
 
-    // Merge partial coverage into main file if needed
-    if (preset.scopedOutput) {
-      await this.mergeScoped(preset);
+      // Custom command — always full run
+      if (runnerKey === 'custom' && customCmd) {
+        await this.execute(customCmd);
+        return;
+      }
+
+      if (!preset) return;
+
+      // If preset has no scoped command, fall back to full run
+      if (!preset.scopedCommand) {
+        await this.execute(preset.command);
+        return;
+      }
+
+      // Compute relative directory of the changed file
+      const relDir = path.relative(this.workspaceRoot, path.dirname(filePath));
+      if (!relDir || relDir.startsWith('..')) {
+        await this.execute(preset.command);
+        return;
+      }
+
+      const scopedCmd = preset.scopedCommand(relDir);
+      this.log.info(`Scoped run for package: ${relDir}`);
+      try {
+        await this.execute(scopedCmd);
+      } catch {
+        // Tests may fail but still produce coverage data — continue to merge
+      }
+
+      // Merge partial coverage into main file if needed
+      if (preset.scopedOutput) {
+        await this.mergeScoped(preset);
+      }
+    } finally {
+      this.setRunning(false);
     }
   }
 
-  /** Merge scoped coverage output into the main coverage file */
+  private setRunning(running: boolean): void {
+    if (this._running === running) return;
+    this._running = running;
+    this._onRunningChanged.fire(running);
+  }
+
   private async mergeScoped(preset: RunnerPreset): Promise<void> {
     if (!preset.scopedOutput) return;
     try {
@@ -141,15 +152,7 @@ export class TestRunner {
     }
 
     this.log.info(`Running: ${command}`);
-    this._running = true;
-    this._onRunningChanged.fire(true);
-
-    try {
-      await this.exec(command);
-    } finally {
-      this._running = false;
-      this._onRunningChanged.fire(false);
-    }
+    await this.exec(command);
   }
 
   private exec(command: string): Promise<void> {
