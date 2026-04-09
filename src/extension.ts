@@ -257,7 +257,7 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
     // First try to show existing coverage files
     await reload();
     // Then run full test suite if runOnSave is enabled
-    if (cfg().get<boolean>('runOnSave', false)) {
+    if (cfg().get<string>('runOnSave', 'package') !== 'off') {
       runFullTests(); // fire-and-forget — don't block activation
     }
   }

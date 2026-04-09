@@ -12,6 +12,9 @@
 - **Fixed JaCoCo coverage % mismatch** — JaCoCo parser now uses native `<counter type="LINE|BRANCH">` elements instead of recomputing from line data
 - **Fixed spinner not always showing** — `setRunning(true)` moved to first line of `run()`/`runScoped()` before any async work
 - **Fixed stale decorations ignoring `onEdit` setting** — test-running state now respects `hide`/`dim`/`keep` preference, same as edit-dirty state
+- Fixed `runOnSave` startup check reading setting as boolean instead of string enum — could skip initial test run
+- Fixed `FileCoverage` detection in tree view using fragile duck-typing — now checks for `filePath` property
+- Removed unnecessary dynamic `import('fs')` called on every coverage file in the parse loop
 
 ### Improvements
 

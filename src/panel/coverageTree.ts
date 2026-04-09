@@ -81,7 +81,7 @@ export class CoverageTreeProvider implements vscode.TreeDataProvider<CoverageTre
     for (const [name, value] of Object.entries(node)) {
       const childPath = path.join(currentPath, name);
 
-      if (value instanceof Map || (value.lines && value.branches)) {
+      if (value && typeof value === 'object' && 'filePath' in value) {
         // It's a FileCoverage
         const fc = value as FileCoverage;
         items.push(new CoverageFileItem(name, fc, this.thresholds, childPath));

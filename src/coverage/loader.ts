@@ -1,3 +1,4 @@
+import * as fs from 'fs';
 import * as path from 'path';
 import * as fg from 'fast-glob';
 import { CoverageMap } from './types';
@@ -63,7 +64,6 @@ export async function loadCoverage(
 
   for (const file of files) {
     try {
-      const fs = await import('fs');
       const content = await fs.promises.readFile(file, 'utf8');
       const format = detectFormat(file, content);
       log.info(`  parsing ${file} as ${format}`);
