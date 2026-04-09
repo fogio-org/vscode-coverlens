@@ -8,6 +8,9 @@ import { normalizePath } from '../../util/paths';
  * Format: mode: set|count|atomic
  * Then lines like: github.com/user/pkg/file.go:10.2,12.0 1 5
  * meaning file.go lines 10-12, 1 statement, hit 5 times
+ *
+ * Lines are expanded for visual decorations, but metrics use
+ * statement counts to match `go tool cover` output.
  */
 export async function parseGoCover(filePath: string, workspaceRoot: string): Promise<CoverageMap> {
   const content = await fs.promises.readFile(filePath, 'utf8');
@@ -15,6 +18,10 @@ export async function parseGoCover(filePath: string, workspaceRoot: string): Pro
 
   // Read module name from go.mod to strip module prefix from coverage paths
   const moduleName = readModuleName(workspaceRoot);
+
+  // Per-file statement counters for metrics
+  const stmtTotals = new Map<string, number>();
+  const stmtCovered = new Map<string, number>();
 
   for (const line of content.split('\n')) {
     const trimmed = line.trim();
@@ -24,9 +31,10 @@ export async function parseGoCover(filePath: string, workspaceRoot: string): Pro
     const match = trimmed.match(/^(.+):(\d+)\.\d+,(\d+)\.\d+\s+(\d+)\s+(\d+)$/);
     if (!match) continue;
 
-    const [, rawFile, startStr, endStr, , countStr] = match;
+    const [, rawFile, startStr, endStr, stmtStr, countStr] = match;
     const startLine = parseInt(startStr, 10);
     const endLine = parseInt(endStr, 10);
+    const numStatements = parseInt(stmtStr, 10);
     const count = parseInt(countStr, 10);
 
     // Strip module prefix to get a workspace-relative path
@@ -41,24 +49,31 @@ export async function parseGoCover(filePath: string, workspaceRoot: string): Pro
         metrics: { totalLines: 0, coveredLines: 0, totalBranches: 0, coveredBranches: 0, partialBranches: 0, linePercent: 0, branchPercent: 0 }
       };
       map.set(absPath, fc);
+      stmtTotals.set(absPath, 0);
+      stmtCovered.set(absPath, 0);
     }
 
+    // Expand lines for visual decorations
     for (let l = startLine; l <= endLine; l++) {
       const existing = fc.lines.get(l) ?? 0;
       fc.lines.set(l, existing + count);
     }
+
+    // Accumulate statement counts for metrics (matches `go tool cover`)
+    stmtTotals.set(absPath, (stmtTotals.get(absPath) ?? 0) + numStatements);
+    if (count > 0) {
+      stmtCovered.set(absPath, (stmtCovered.get(absPath) ?? 0) + numStatements);
+    }
   }
 
-  // Compute metrics for all files
-  for (const fc of map.values()) {
-    let covered = 0;
-    for (const hits of fc.lines.values()) {
-      if (hits > 0) covered++;
-    }
-    fc.metrics.totalLines = fc.lines.size;
+  // Compute metrics using statement counts
+  for (const [absPath, fc] of map) {
+    const total = stmtTotals.get(absPath) ?? 0;
+    const covered = stmtCovered.get(absPath) ?? 0;
+    fc.metrics.totalLines = total;
     fc.metrics.coveredLines = covered;
-    fc.metrics.linePercent = fc.metrics.totalLines === 0 ? 100
-      : Math.round((covered / fc.metrics.totalLines) * 100);
+    fc.metrics.linePercent = total === 0 ? 100
+      : Math.round((covered / total) * 100);
   }
 
   return map;
