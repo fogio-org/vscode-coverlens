@@ -24,10 +24,10 @@ export async function parseJacoco(filePath: string, workspaceRoot: string): Prom
         metrics: { totalLines: 0, coveredLines: 0, totalBranches: 0, coveredBranches: 0, partialBranches: 0, linePercent: 0, branchPercent: 0 }
       };
 
+      // Parse individual lines for decorations
       for (const ln of sf?.line ?? []) {
         const lineNo = parseInt(ln.$?.nr, 10);
         const ci = parseInt(ln.$?.ci, 10) || 0; // covered instructions
-        const mi = parseInt(ln.$?.mi, 10) || 0; // missed instructions
         fc.lines.set(lineNo, ci > 0 ? ci : 0);
 
         const cb = parseInt(ln.$?.cb, 10) || 0;
@@ -41,25 +41,43 @@ export async function parseJacoco(filePath: string, workspaceRoot: string): Prom
         }
       }
 
-      let covered = 0;
-      for (const h of fc.lines.values()) if (h > 0) covered++;
-      fc.metrics.totalLines = fc.lines.size;
-      fc.metrics.coveredLines = covered;
-      fc.metrics.linePercent = fc.metrics.totalLines === 0 ? 100
-        : Math.round((covered / fc.metrics.totalLines) * 100);
+      // Use JaCoCo's own LINE and BRANCH counters for metrics
+      // These match what JaCoCo reports in HTML/CSV/XML summaries
+      const counters = sf?.counter ?? [];
+      for (const c of counters) {
+        const type = c.$?.type;
+        const missed = parseInt(c.$?.missed, 10) || 0;
+        const covered = parseInt(c.$?.covered, 10) || 0;
 
-      let totalBranches = 0, coveredBranches = 0, partialBranches = 0;
+        if (type === 'LINE') {
+          fc.metrics.totalLines = missed + covered;
+          fc.metrics.coveredLines = covered;
+          fc.metrics.linePercent = (missed + covered) === 0 ? 100
+            : Math.round((covered / (missed + covered)) * 100);
+        } else if (type === 'BRANCH') {
+          fc.metrics.totalBranches = missed + covered;
+          fc.metrics.coveredBranches = covered;
+          fc.metrics.branchPercent = (missed + covered) === 0 ? 100
+            : Math.round((covered / (missed + covered)) * 100);
+        }
+      }
+
+      // Compute partial branches from line-level data (not in counters)
+      let partialBranches = 0;
       for (const bds of fc.branches.values()) {
-        totalBranches += bds.length;
         const taken = bds.filter(b => b.taken > 0).length;
-        coveredBranches += taken;
         if (taken > 0 && taken < bds.length) partialBranches++;
       }
-      fc.metrics.totalBranches = totalBranches;
-      fc.metrics.coveredBranches = coveredBranches;
       fc.metrics.partialBranches = partialBranches;
-      fc.metrics.branchPercent = totalBranches === 0 ? 100
-        : Math.round((coveredBranches / totalBranches) * 100);
+
+      // Fallback: if no LINE counter in XML, compute from lines map
+      if (fc.metrics.totalLines === 0 && fc.lines.size > 0) {
+        let covered = 0;
+        for (const h of fc.lines.values()) if (h > 0) covered++;
+        fc.metrics.totalLines = fc.lines.size;
+        fc.metrics.coveredLines = covered;
+        fc.metrics.linePercent = Math.round((covered / fc.lines.size) * 100);
+      }
 
       map.set(absPath, fc);
     }
