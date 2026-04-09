@@ -23,6 +23,7 @@ export class TestRunner {
   abort(): void {
     if (!this.activeProc || this.activeProc.exitCode !== null) {
       this.activeProc = null;
+      this.setRunning(false);
       return;
     }
 
@@ -36,13 +37,14 @@ export class TestRunner {
 
     proc.once('exit', () => clearTimeout(forceKill));
     this.activeProc = null;
+    this.setRunning(false);
   }
 
   /** Run full test suite */
   async run(): Promise<void> {
     this.setRunning(true);
     try {
-      const command = await this.resolveCommand();
+      const command = this.resolveCommand();
       if (!command) return;
       await this.execute(command);
     } finally {
@@ -54,7 +56,7 @@ export class TestRunner {
   async runScoped(filePath: string): Promise<void> {
     this.setRunning(true);
     try {
-      const { runnerKey, preset, customCmd } = await this.resolveRunner();
+      const { runnerKey, preset, customCmd } = this.resolveRunner();
 
       // Custom command — always full run
       if (runnerKey === 'custom' && customCmd) {
@@ -114,13 +116,13 @@ export class TestRunner {
     }
   }
 
-  private async resolveRunner(): Promise<{ runnerKey: string; preset: RunnerPreset | null; customCmd: string }> {
+  private resolveRunner(): { runnerKey: string; preset: RunnerPreset | null; customCmd: string } {
     const cfg = vscode.workspace.getConfiguration('coverlens');
     let runnerKey = cfg.get<string>('testRunner', 'auto');
     const customCmd = cfg.get<string>('testRunner.customCommand', '');
 
     if (runnerKey === 'auto') {
-      runnerKey = await detectRunner(this.workspaceRoot);
+      runnerKey = detectRunner(this.workspaceRoot);
       this.log.info(`Auto-detected runner: ${runnerKey}`);
     }
 
@@ -137,8 +139,8 @@ export class TestRunner {
     return { runnerKey, preset, customCmd: '' };
   }
 
-  private async resolveCommand(): Promise<string | null> {
-    const { runnerKey, preset, customCmd } = await this.resolveRunner();
+  private resolveCommand(): string | null {
+    const { runnerKey, preset, customCmd } = this.resolveRunner();
     if (runnerKey === 'custom' && customCmd) return customCmd;
     return preset?.command ?? null;
   }
@@ -150,7 +152,8 @@ export class TestRunner {
 
   private exec(command: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      const proc = cp.exec(command, { cwd: this.workspaceRoot }, (err, stdout, stderr) => {
+      const timeout = 10 * 60 * 1000; // 10 minutes
+      const proc = cp.exec(command, { cwd: this.workspaceRoot, maxBuffer: 50 * 1024 * 1024, timeout }, (err, stdout, stderr) => {
         if (this.activeProc === proc) this.activeProc = null;
 
         if (err) {

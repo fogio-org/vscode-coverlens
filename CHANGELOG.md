@@ -5,20 +5,29 @@
 ### New Features
 
 - **Run-on-save scope setting** — `coverlens.runOnSave` changed from boolean to `"off"` | `"package"` | `"all"` (default `"package"`) — choose between per-package or full-suite auto-runs
+- **Stop tests command** — new `CoverLens: Stop Running Tests` command to cancel a running test suite from the command palette
 
 ### Bug Fixes
 
 - **Fixed Go coverage % mismatch** — Go parser now uses statement counts (matching `go tool cover` output) instead of line counts for metrics
 - **Fixed JaCoCo coverage % mismatch** — JaCoCo parser now uses native `<counter type="LINE|BRANCH">` elements instead of recomputing from line data
+- **Fixed coverage data loss across files** — when multiple coverage files or Cobertura classes contain the same source file, hit counts are now merged instead of overwritten
 - **Fixed spinner not always showing** — `setRunning(true)` moved to first line of `run()`/`runScoped()` before any async work
 - **Fixed stale decorations ignoring `onEdit` setting** — test-running state now respects `hide`/`dim`/`keep` preference, same as edit-dirty state
+- **Fixed file watcher not updating on config change** — changing `coverageFiles` or `excludePatterns` now restarts the watcher with new globs
 - Fixed `runOnSave` startup check reading setting as boolean instead of string enum — could skip initial test run
 - Fixed `FileCoverage` detection in tree view using fragile duck-typing — now checks for `filePath` property
-- Removed unnecessary dynamic `import('fs')` called on every coverage file in the parse loop
+- Fixed `abort()` not resetting running state — cancelling tests no longer leaves the spinner stuck
 
 ### Improvements
 
 - **Smarter .gitignore check** — uses `git check-ignore` on actual coverage files instead of matching hardcoded patterns; respects wildcards, nested `.gitignore`, and global gitignore config
+- **Async file path resolution** — `resolveFilePath` no longer blocks the extension host with synchronous glob; uses async `fs.promises.access` and `fg.glob`
+- **Better test runner detection** — added .NET (`*.csproj`/`*.sln`), `setup.py`, `.mjs` config files, and `package.json` scripts fallback
+- **Test runner robustness** — increased output buffer to 50 MB, added 10-minute execution timeout
+- Removed unused dependencies (`lcov-parse`, `minimatch`)
+- Removed unused `showRunnerNotifications` setting
+- Removed `clover.xml` from default coverage file globs (no parser available)
 
 ## 0.4.0
 

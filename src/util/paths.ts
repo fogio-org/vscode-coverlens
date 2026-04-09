@@ -11,7 +11,7 @@ export function normalizePath(p: string): string {
  * Given a path from a coverage file (may be relative or absolute),
  * resolve it against the workspace root and return a normalized absolute path.
  */
-export function resolveFilePath(coveragePath: string, workspaceRoot: string): string {
+export async function resolveFilePath(coveragePath: string, workspaceRoot: string): Promise<string> {
   const normalized = normalizePath(coveragePath);
   if (path.isAbsolute(normalized)) return normalized;
 
@@ -24,14 +24,19 @@ export function resolveFilePath(coveragePath: string, workspaceRoot: string): st
   ];
 
   for (const c of candidates) {
-    if (fs.existsSync(c)) return normalizePath(c);
+    try {
+      await fs.promises.access(c);
+      return normalizePath(c);
+    } catch {
+      // file does not exist at this candidate
+    }
   }
 
   // If the full relative path didn't match, try finding just the filename
   // anywhere in the workspace (handles JaCoCo-style "com/example/Foo.java"
   // when the file is at a different location).
   const basename = path.basename(normalized);
-  const found = fg.globSync(`**/${basename}`, {
+  const found = await fg.glob(`**/${basename}`, {
     cwd: workspaceRoot,
     absolute: true,
     ignore: ['**/node_modules/**', '**/vendor/**', '**/.git/**'],

@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as fg from 'fast-glob';
-import { CoverageMap } from './types';
+import { CoverageMap, FileCoverage } from './types';
 import { parseLcov } from './parser/lcov';
 import { parseCobertura } from './parser/cobertura';
 import { parseJacoco } from './parser/jacoco';
@@ -85,7 +85,12 @@ export async function loadCoverage(
       }
 
       for (const [k, v] of partial) {
-        merged.set(k, v);
+        const existing = merged.get(k);
+        if (existing) {
+          mergeCoverage(existing, v);
+        } else {
+          merged.set(k, v);
+        }
       }
       parsedFiles.push(file);
     } catch (err) {
@@ -94,4 +99,42 @@ export async function loadCoverage(
   }
 
   return { map: merged, coverageFiles: parsedFiles };
+}
+
+/** Merge source coverage into target, summing hit counts and recomputing metrics */
+function mergeCoverage(target: FileCoverage, source: FileCoverage): void {
+  for (const [line, hits] of source.lines) {
+    target.lines.set(line, (target.lines.get(line) ?? 0) + hits);
+  }
+  for (const [line, bds] of source.branches) {
+    if (!target.branches.has(line)) {
+      target.branches.set(line, [...bds]);
+    } else {
+      const existing = target.branches.get(line)!;
+      bds.forEach((bd, i) => {
+        if (existing[i]) existing[i].taken += bd.taken;
+        else existing.push({ ...bd });
+      });
+    }
+  }
+  // Recompute metrics
+  let covered = 0;
+  for (const hits of target.lines.values()) if (hits > 0) covered++;
+  target.metrics.totalLines = target.lines.size;
+  target.metrics.coveredLines = covered;
+  target.metrics.linePercent = target.metrics.totalLines === 0 ? 100
+    : Math.round((covered / target.metrics.totalLines) * 100);
+
+  let totalBr = 0, coveredBr = 0, partialLines = 0;
+  for (const bds of target.branches.values()) {
+    totalBr += bds.length;
+    const taken = bds.filter(b => b.taken > 0).length;
+    coveredBr += taken;
+    if (taken > 0 && taken < bds.length) partialLines++;
+  }
+  target.metrics.totalBranches = totalBr;
+  target.metrics.coveredBranches = coveredBr;
+  target.metrics.partialBranches = partialLines;
+  target.metrics.branchPercent = totalBr === 0 ? 100
+    : Math.round((coveredBr / totalBr) * 100);
 }

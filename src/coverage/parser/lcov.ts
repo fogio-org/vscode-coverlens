@@ -13,7 +13,7 @@ export async function parseLcov(filePath: string, workspaceRoot: string): Promis
     const line = rawLine.trim();
 
     if (line.startsWith('SF:')) {
-      const sourcePath = resolveFilePath(line.slice(3), workspaceRoot);
+      const sourcePath = await resolveFilePath(line.slice(3), workspaceRoot);
       current = {
         filePath: sourcePath,
         lines: new Map(),

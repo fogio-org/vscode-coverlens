@@ -130,6 +130,7 @@ Coverage from all packages is aggregated into one unified view. Configure manual
 | CoverLens: Run Tests with Coverage | Execute test runner and reload coverage |
 | CoverLens: Reload Coverage Files | Re-read coverage files from disk |
 | CoverLens: Show Coverage Summary | Display current coverage % and delta |
+| CoverLens: Stop Running Tests | Cancel the currently running test suite |
 | CoverLens: Reset Coverage Baseline | Reset the session baseline for delta tracking |
 
 ## Settings
@@ -143,7 +144,6 @@ Coverage from all packages is aggregated into one unified view. Configure manual
 | `coverlens.overviewRuler` | `false` | Show coverage colors in the scrollbar |
 | `coverlens.onEdit` | `"dim"` | Stale coverage behavior: `"hide"`, `"dim"`, or `"keep"` |
 | `coverlens.runOnSave` | `"package"` | Auto-run tests on save: `"off"`, `"package"` (affected package only), or `"all"` (full suite) |
-| `coverlens.showRunnerNotifications` | `false` | Show progress notification while tests run |
 | `coverlens.colors.covered` | — | Custom color for covered lines |
 | `coverlens.colors.partial` | — | Custom color for partial branch lines |
 | `coverlens.colors.uncovered` | — | Custom color for uncovered lines |

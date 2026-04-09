@@ -174,6 +174,13 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
 
     vscode.commands.registerCommand('coverlens.runWithCoverage', () => runFullTests()),
 
+    vscode.commands.registerCommand('coverlens.stopTests', () => {
+      if (runner.isRunning) {
+        runner.abort();
+        log.info('Test run cancelled by user.');
+      }
+    }),
+
     vscode.commands.registerCommand('coverlens.showHistory', () => {
       if (coverageMap.size === 0) {
         vscode.window.showInformationMessage('CoverLens: no coverage data loaded.');
@@ -197,14 +204,18 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
     })
   );
 
-  // Reload coverage when relevant settings change
+  // Reload coverage and restart watcher when relevant settings change
   ctx.subscriptions.push(
-    vscode.workspace.onDidChangeConfiguration(e => {
+    vscode.workspace.onDidChangeConfiguration(async e => {
       if (
         e.affectsConfiguration('coverlens.coverageFiles') ||
         e.affectsConfiguration('coverlens.excludePatterns') ||
         e.affectsConfiguration('coverlens.monorepo')
       ) {
+        // Restart watcher with new globs
+        const newGlobs   = cfg().get<string[]>('coverageFiles', ['**/lcov.info']);
+        const newExclude = cfg().get<string[]>('excludePatterns', ['**/node_modules/**']);
+        await watcher.start(newGlobs, newExclude, workspaceRoot, reload);
         reload();
       }
     })

@@ -62,6 +62,11 @@
       {
         "command": "coverlens.clearHistory",
         "title": "CoverLens: Reset Coverage Baseline"
+      },
+      {
+        "command": "coverlens.stopTests",
+        "title": "CoverLens: Stop Running Tests",
+        "icon": "$(debug-stop)"
       }
     ],
     "views": {
@@ -124,7 +129,6 @@
             "**/jacoco-report.xml",
             "**/site/jacoco/jacoco.xml",
             "**/target/site/jacoco/jacoco.xml",
-            "**/clover.xml",
             "**/coverage.out",
             "**/*.coverprofile",
             "**/cover.out",
@@ -186,11 +190,6 @@
           "enum": ["off", "package", "all"],
           "default": "package",
           "description": "Auto-run tests on save: 'off' = disabled, 'package' = only affected package, 'all' = full test suite"
-        },
-        "coverlens.showRunnerNotifications": {
-          "type": "boolean",
-          "default": false,
-          "description": "Show progress notification while tests are running"
         },
         "coverlens.diffMode": {
           "type": "boolean",
@@ -264,13 +263,10 @@
   "dependencies": {
     "chokidar": "^5.0.0",
     "fast-glob": "^3.3.3",
-    "lcov-parse": "^1.0.0",
-    "minimatch": "^10.2.5",
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
-    "@types/minimatch": "^5.1.2",
     "@types/node": "^25.5.0",
     "@types/vscode": "^1.110.0",
     "@types/xml2js": "^0.4.14",

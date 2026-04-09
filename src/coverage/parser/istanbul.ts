@@ -13,7 +13,7 @@ export async function parseIstanbul(filePath: string, workspaceRoot: string): Pr
   const map: CoverageMap = new Map();
 
   for (const [rawPath, entry] of Object.entries(data) as [string, any][]) {
-    const absPath = resolveFilePath(rawPath, workspaceRoot);
+    const absPath = await resolveFilePath(rawPath, workspaceRoot);
 
     const fc: FileCoverage = {
       filePath: absPath,

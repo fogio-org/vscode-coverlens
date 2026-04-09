@@ -15,7 +15,7 @@ export async function parseJacoco(filePath: string, workspaceRoot: string): Prom
       const name = sf.$?.name ?? '';
       const pkgName = (pkg.$?.name ?? '').replace(/\//g, '/');
       const rel = pkgName ? `${pkgName}/${name}` : name;
-      const absPath = resolveFilePath(rel, workspaceRoot);
+      const absPath = await resolveFilePath(rel, workspaceRoot);
 
       const fc: FileCoverage = {
         filePath: absPath,
