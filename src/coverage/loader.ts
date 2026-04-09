@@ -37,13 +37,19 @@ function detectFormat(filePath: string, content: string): CoverageFormat {
   return 'unknown';
 }
 
+export interface LoadResult {
+  map: CoverageMap;
+  /** Absolute paths of the coverage files that were parsed */
+  coverageFiles: string[];
+}
+
 /** Load all coverage files matching the given globs, merge into one map */
 export async function loadCoverage(
   globs: string[],
   excludePatterns: string[],
   workspaceRoot: string,
   log: Logger
-): Promise<CoverageMap> {
+): Promise<LoadResult> {
   const files = await fg.glob(globs, {
     cwd: workspaceRoot,
     absolute: true,
@@ -53,6 +59,7 @@ export async function loadCoverage(
   log.info(`CoverLens: found ${files.length} coverage file(s)`);
 
   const merged: CoverageMap = new Map();
+  const parsedFiles: string[] = [];
 
   for (const file of files) {
     try {
@@ -80,10 +87,11 @@ export async function loadCoverage(
       for (const [k, v] of partial) {
         merged.set(k, v);
       }
+      parsedFiles.push(file);
     } catch (err) {
       log.error(`  failed to parse ${file}: ${err}`);
     }
   }
 
-  return merged;
+  return { map: merged, coverageFiles: parsedFiles };
 }

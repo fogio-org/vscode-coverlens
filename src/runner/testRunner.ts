@@ -3,11 +3,9 @@ import * as cp from 'child_process';
 import * as path from 'path';
 import { PRESETS, RunnerPreset, detectRunner } from './presets';
 import { Logger } from '../util/logger';
-import { ensureCoverageInGitignore } from '../util/gitignore';
 import { mergeGoCoverProfiles } from './mergeProfiles';
 
 export class TestRunner {
-  private gitignoreChecked = false;
   private activeProc: cp.ChildProcess | null = null;
   private _running = false;
 
@@ -146,11 +144,6 @@ export class TestRunner {
   }
 
   private async execute(command: string): Promise<void> {
-    if (!this.gitignoreChecked) {
-      this.gitignoreChecked = true;
-      await ensureCoverageInGitignore(this.workspaceRoot);
-    }
-
     this.log.info(`Running: ${command}`);
     await this.exec(command);
   }

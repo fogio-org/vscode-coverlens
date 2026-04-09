@@ -9,6 +9,7 @@ import { HistoryStore } from './history/store';
 import { getChangedLines } from './diffCoverage/gitDiff';
 import { detectPackages } from './config/monorepo';
 import { Logger } from './util/logger';
+import { ensureCoverageInGitignore } from './util/gitignore';
 import { CoverageMap } from './coverage/types';
 
 export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
@@ -34,6 +35,7 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
   let coverageMap: CoverageMap = new Map();
   let diffMode = cfg().get<boolean>('diffMode', false);
   let currentDiffLines: Map<string, Set<number>> | null = null;
+  let gitignoreChecked = false;
 
   // Reflect runner state: spinner in status bar + dim decorations
   runner.onRunningChanged(running => {
@@ -65,16 +67,24 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
       }
 
       const merged: CoverageMap = new Map();
+      const allCoverageFiles: string[] = [];
       for (const pkg of packages) {
         try {
-          const partial = await loadCoverage(globs, exclude, pkg, log);
-          for (const [k, v] of partial) merged.set(k, v);
+          const result = await loadCoverage(globs, exclude, pkg, log);
+          for (const [k, v] of result.map) merged.set(k, v);
+          allCoverageFiles.push(...result.coverageFiles);
         } catch (err) {
           log.warn(`Failed to load coverage for ${pkg}: ${err}`);
         }
       }
 
       coverageMap = merged;
+
+      // Check gitignore once per session, after we know which files exist
+      if (!gitignoreChecked && allCoverageFiles.length > 0) {
+        gitignoreChecked = true;
+        ensureCoverageInGitignore(workspaceRoot, allCoverageFiles).catch(() => {});
+      }
       decorator.setCoverage(coverageMap);
       treeProvider.setCoverage(coverageMap);
 

@@ -13,6 +13,10 @@
 - **Fixed spinner not always showing** — `setRunning(true)` moved to first line of `run()`/`runScoped()` before any async work
 - **Fixed stale decorations ignoring `onEdit` setting** — test-running state now respects `hide`/`dim`/`keep` preference, same as edit-dirty state
 
+### Improvements
+
+- **Smarter .gitignore check** — uses `git check-ignore` on actual coverage files instead of matching hardcoded patterns; respects wildcards, nested `.gitignore`, and global gitignore config
+
 ## 0.4.0
 
 ### New Features
