@@ -142,7 +142,7 @@ Coverage from all packages is aggregated into one unified view. Configure manual
 | `coverlens.decorationStyle` | `"border"` | Display mode: `"border"` or `"highlight"` |
 | `coverlens.overviewRuler` | `false` | Show coverage colors in the scrollbar |
 | `coverlens.onEdit` | `"dim"` | Stale coverage behavior: `"hide"`, `"dim"`, or `"keep"` |
-| `coverlens.runOnSave` | `true` | Auto-run tests with coverage on file save |
+| `coverlens.runOnSave` | `"package"` | Auto-run tests on save: `"off"`, `"package"` (affected package only), or `"all"` (full suite) |
 | `coverlens.showRunnerNotifications` | `false` | Show progress notification while tests run |
 | `coverlens.colors.covered` | — | Custom color for covered lines |
 | `coverlens.colors.partial` | — | Custom color for partial branch lines |

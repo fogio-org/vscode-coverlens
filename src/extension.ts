@@ -200,19 +200,24 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
     })
   );
 
-  // Auto-run scoped tests on save (if enabled)
+  // Auto-run tests on save
   let runOnSaveTimeout: ReturnType<typeof setTimeout> | undefined;
   ctx.subscriptions.push(
     vscode.workspace.onDidSaveTextDocument((doc) => {
-      if (!cfg().get<boolean>('runOnSave', false)) return;
+      const mode = cfg().get<string>('runOnSave', 'package');
+      if (mode === 'off' || mode === 'false' || !mode) return;
       const filePath = doc.uri.fsPath;
       if (runOnSaveTimeout) clearTimeout(runOnSaveTimeout);
       runOnSaveTimeout = setTimeout(async () => {
         try {
           runner.abort();
-          await runner.runScoped(filePath);
+          if (mode === 'all') {
+            await runner.run();
+          } else {
+            await runner.runScoped(filePath);
+          }
         } catch (err) {
-          log.error(`Scoped test run failed: ${err}`);
+          log.error(`Test run on save failed: ${err}`);
         }
         await reload();
       }, 1000);

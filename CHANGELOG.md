@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.0
+
+### New Features
+
+- **Run-on-save scope setting** — `coverlens.runOnSave` changed from boolean to `"off"` | `"package"` | `"all"` (default `"package"`) — choose between per-package or full-suite auto-runs
+
+### Bug Fixes
+
+- **Fixed Go coverage % mismatch** — Go parser now uses statement counts (matching `go tool cover` output) instead of line counts for metrics
+- **Fixed JaCoCo coverage % mismatch** — JaCoCo parser now uses native `<counter type="LINE|BRANCH">` elements instead of recomputing from line data
+- **Fixed spinner not always showing** — `setRunning(true)` moved to first line of `run()`/`runScoped()` before any async work
+- **Fixed stale decorations ignoring `onEdit` setting** — test-running state now respects `hide`/`dim`/`keep` preference, same as edit-dirty state
+
 ## 0.4.0
 
 ### New Features

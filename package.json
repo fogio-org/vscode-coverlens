@@ -2,7 +2,7 @@
   "name": "coverlens",
   "displayName": "CoverLens",
   "description": "Three-state coverage lens with diff mode and monorepo support",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "publisher": "fogio",
   "icon": "assets/icon.png",
   "engines": {
@@ -182,9 +182,10 @@
           "description": "What to do with coverage when a file is edited: 'hide' = remove decorations, 'dim' = show faded, 'keep' = do nothing"
         },
         "coverlens.runOnSave": {
-          "type": "boolean",
-          "default": true,
-          "description": "Automatically run tests with coverage when a file is saved"
+          "type": "string",
+          "enum": ["off", "package", "all"],
+          "default": "package",
+          "description": "Auto-run tests on save: 'off' = disabled, 'package' = only affected package, 'all' = full test suite"
         },
         "coverlens.showRunnerNotifications": {
           "type": "boolean",
