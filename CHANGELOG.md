@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.0
+
+- Update readme badges
+
 ## 0.5.0
 
 ### New Features
