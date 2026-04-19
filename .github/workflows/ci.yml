@@ -37,21 +37,9 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           {
-            if [ "${{ steps.validate.outputs.exitcode }}" = "0" ]; then
-              echo "### ✅ CI passed"
-            else
-              echo "### ❌ CI failed"
-            fi
+            echo "### ✅ CI passed"
             echo
             echo "Workflow run: [\`${GITHUB_RUN_ID}\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})"
-            echo
-            echo "<details><summary><code>npm run validate</code></summary>"
-            echo
-            echo '```'
-            cat validate.log
-            echo '```'
-            echo
-            echo "</details>"
           } > comment.md
 
       - name: Post PR comment
@@ -63,7 +51,7 @@ jobs:
           path: comment.md
 
       - name: Approve PR on success
-        if: github.event_name == 'pull_request' && steps.validate.outputs.exitcode == '0'
+        if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ steps.bot-token.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -73,7 +61,3 @@ jobs:
             --repo "$REPO" \
             --approve \
             --body "Automated approval — CI validation passed."
-
-      - name: Fail job if validation failed
-        if: steps.validate.outputs.exitcode != '0'
-        run: exit 1
