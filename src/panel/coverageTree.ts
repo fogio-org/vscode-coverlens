@@ -90,7 +90,7 @@ export class CoverageTreeProvider implements vscode.TreeDataProvider<CoverageTre
         const children = this.nodeToItems(value as Record<string, any>, childPath);
         const allFcs = this.collectFileCoverages(value as Record<string, any>);
         const aggPct = this.aggregatePct(allFcs);
-        items.push(new CoverageFolderItem(name, children, aggPct, this.thresholds, childPath));
+        items.push(new CoverageFolderItem(name, children, aggPct));
       }
     }
 
@@ -157,9 +157,7 @@ class CoverageFolderItem extends CoverageTreeItem {
   constructor(
     name: string,
     children: CoverageTreeItem[],
-    pct: number,
-    thresholds: { low: number; medium: number },
-    absPath: string
+    pct: number
   ) {
     super(name, vscode.TreeItemCollapsibleState.Collapsed);
     this.children = children;
