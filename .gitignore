@@ -4,4 +4,3 @@ dist/
 .coverlens/
 *.vsix
 .vscode-test/
-coverage/

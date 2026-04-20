@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { FileCoverage, CoverageMap } from '../types';
+import { CoverageMap } from '../types';
 import { normalizePath } from '../../util/paths';
 
 /**

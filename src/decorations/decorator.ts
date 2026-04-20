@@ -120,7 +120,11 @@ export class CoverageDecorator {
   }
 
   toggle(): void {
-    this.enabled ? this.disable() : this.enable();
+    if (this.enabled) {
+      this.disable();
+    } else {
+      this.enable();
+    }
   }
 
   get isEnabled(): boolean { return this.enabled; }

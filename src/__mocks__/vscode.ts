@@ -26,5 +26,5 @@ export class TreeItem {
 }
 export enum StatusBarAlignment { Right = 2 }
 export enum ProgressLocation { Notification = 15 }
-export const commands = { registerCommand: (id: string, fn: any) => ({ dispose: () => {} }) };
+export const commands = { registerCommand: (_id: string, _fn: any) => ({ dispose: () => {} }) };
 export const ExtensionContext = class {};

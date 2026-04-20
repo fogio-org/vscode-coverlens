@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import { parseStringPromise } from 'xml2js';
-import { FileCoverage, CoverageMap } from '../types';
+import { CoverageMap } from '../types';
 import { resolveFilePath } from '../../util/paths';
 
 export async function parseCobertura(filePath: string, workspaceRoot: string): Promise<CoverageMap> {
