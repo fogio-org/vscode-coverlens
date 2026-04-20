@@ -22,9 +22,28 @@ jobs:
         run: |
           echo "version=$(node -p 'require(\"./package.json\").version')" >> "$GITHUB_OUTPUT"
           echo "run_url=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+      - name: Check notification credentials
+        id: secrets-check
+        env:
+          FOGIO_BOT_APP_ID: ${{ secrets.FOGIO_BOT_APP_ID }}
+          FOGIO_BOT_PRIVATE_KEY: ${{ secrets.FOGIO_BOT_PRIVATE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -n "$FOGIO_BOT_APP_ID" ] && [ -n "$FOGIO_BOT_PRIVATE_KEY" ]; then
+            echo "has_fogio_bot=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_fogio_bot=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            echo "has_telegram=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_telegram=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Generate fogio-ci bot token
         id: bot-token
-        if: ${{ secrets.FOGIO_BOT_APP_ID != '' && secrets.FOGIO_BOT_PRIVATE_KEY != '' }}
+        if: ${{ steps.secrets-check.outputs.has_fogio_bot == 'true' }}
         uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ secrets.FOGIO_BOT_APP_ID }}
@@ -87,7 +106,7 @@ jobs:
               -f body="$COMMENT_BODY"
           fi
       - name: Send Telegram notification
-        if: ${{ always() && secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_CHAT_ID != '' }}
+        if: ${{ always() && steps.secrets-check.outputs.has_telegram == 'true' }}
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
