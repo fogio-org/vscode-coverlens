@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.0
+
+- Update extension logo
+- Enhance CI workflow
+
 ## 0.6.0
 
 - Update readme badges
