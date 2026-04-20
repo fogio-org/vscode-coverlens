@@ -8,17 +8,117 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
       - run: npm install --no-audit --no-fund
+      - name: Collect release metadata
+        id: meta
+        run: |
+          echo "version=$(node -p 'require(\"./package.json\").version')" >> "$GITHUB_OUTPUT"
+          echo "run_url=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+      - name: Generate fogio-ci bot token
+        id: bot-token
+        if: ${{ secrets.FOGIO_BOT_APP_ID != '' && secrets.FOGIO_BOT_PRIVATE_KEY != '' }}
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.FOGIO_BOT_APP_ID }}
+          private-key: ${{ secrets.FOGIO_BOT_PRIVATE_KEY }}
       - name: Publish to VS Code Marketplace
+        id: publish-vsce
+        continue-on-error: true
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: npx --yes @vscode/vsce publish --no-dependencies
       - name: Publish to Open VSX
+        id: publish-ovsx
+        continue-on-error: true
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
         run: npx --yes ovsx publish --no-dependencies
+      - name: Prepare release notification body
+        if: always()
+        env:
+          RELEASE_VERSION: ${{ steps.meta.outputs.version }}
+          RELEASE_RUN_URL: ${{ steps.meta.outputs.run_url }}
+          VSCE_OUTCOME: ${{ steps.publish-vsce.outcome }}
+          OVSX_OUTCOME: ${{ steps.publish-ovsx.outcome }}
+        run: |
+          if [ "$VSCE_OUTCOME" = "success" ] && [ "$OVSX_OUTCOME" = "success" ]; then
+            STATUS_ICON="✅"
+            STATUS_TEXT="Release deployed"
+          else
+            STATUS_ICON="❌"
+            STATUS_TEXT="Release failed"
+          fi
+
+          {
+            echo "### ${STATUS_ICON} ${STATUS_TEXT}"
+            echo
+            echo "- Version: \`${RELEASE_VERSION}\`"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- VS Code Marketplace: \`${VSCE_OUTCOME}\`"
+            echo "- Open VSX: \`${OVSX_OUTCOME}\`"
+            echo "- Workflow run: [\`${GITHUB_RUN_ID}\`](${RELEASE_RUN_URL})"
+          } > release-comment.md
+      - name: Post fogio-ci release comment
+        if: ${{ always() && steps.bot-token.outputs.token != '' }}
+        env:
+          GH_TOKEN: ${{ steps.bot-token.outputs.token }}
+        run: |
+          COMMENT_BODY="$(cat release-comment.md)"
+          PRS_JSON="$(gh api -H "Accept: application/vnd.github+json" "/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" || echo '[]')"
+          PR_NUMBER="$(printf '%s' "$PRS_JSON" | node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync(0, 'utf8')); process.stdout.write(data[0]?.number ? String(data[0].number) : '')")"
+
+          if [ -n "$PR_NUMBER" ]; then
+            gh api \
+              --method POST \
+              "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              -f body="$COMMENT_BODY"
+          else
+            gh api \
+              --method POST \
+              "/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" \
+              -f body="$COMMENT_BODY"
+          fi
+      - name: Send Telegram notification
+        if: ${{ always() && secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_CHAT_ID != '' }}
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RELEASE_VERSION: ${{ steps.meta.outputs.version }}
+          RELEASE_RUN_URL: ${{ steps.meta.outputs.run_url }}
+          VSCE_OUTCOME: ${{ steps.publish-vsce.outcome }}
+          OVSX_OUTCOME: ${{ steps.publish-ovsx.outcome }}
+        run: |
+          if [ "$VSCE_OUTCOME" = "success" ] && [ "$OVSX_OUTCOME" = "success" ]; then
+            STATUS_ICON="✅"
+            STATUS_TEXT="Release deployed"
+          else
+            STATUS_ICON="❌"
+            STATUS_TEXT="Release failed"
+          fi
+
+          TELEGRAM_TEXT="$(printf '%s\n%s\n%s\n%s\n%s\n%s\n%s' \
+            "<b>${STATUS_ICON} ${STATUS_TEXT}</b>" \
+            "<b>Repository:</b> ${GITHUB_REPOSITORY}" \
+            "<b>Version:</b> ${RELEASE_VERSION}" \
+            "<b>Commit:</b> <code>${GITHUB_SHA}</code>" \
+            "<b>VS Code Marketplace:</b> ${VSCE_OUTCOME}" \
+            "<b>Open VSX:</b> ${OVSX_OUTCOME}" \
+            "<b>Run:</b> ${RELEASE_RUN_URL}")"
+
+          curl --fail --silent --show-error \
+            --request POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=${TELEGRAM_TEXT}" \
+            --data-urlencode "parse_mode=HTML" \
+            --data-urlencode "disable_web_page_preview=true"
+      - name: Fail workflow if publish failed
+        if: ${{ steps.publish-vsce.outcome != 'success' || steps.publish-ovsx.outcome != 'success' }}
+        run: exit 1
