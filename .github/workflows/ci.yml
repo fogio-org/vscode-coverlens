@@ -15,12 +15,31 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: npm install --no-audit --no-fund
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+
+      - name: Lint
+        id: lint
+        continue-on-error: true
+        run: npm run lint > lint.log 2>&1
+
+      - name: Typecheck
+        id: typecheck
+        continue-on-error: true
+        run: npx tsc --noEmit > typecheck.log 2>&1
+
+      - name: Test
+        id: test
+        continue-on-error: true
+        run: npm test -- --runInBand > test.log 2>&1
 
       - name: Build VSIX (smoke test)
-        run: npx --yes @vscode/vsce package --no-dependencies --out theme.vsix
+        id: package
+        continue-on-error: true
+        run: npx --yes @vscode/vsce package --no-dependencies --out theme.vsix > package.log 2>&1
 
       - uses: actions/upload-artifact@v4
+        if: ${{ steps.package.outcome == 'success' }}
         with:
           name: theme-vsix
           path: theme.vsix
@@ -35,11 +54,77 @@ jobs:
 
       - name: Prepare PR comment body
         if: github.event_name == 'pull_request'
+        env:
+          LINT_OUTCOME: ${{ steps.lint.outcome }}
+          TYPECHECK_OUTCOME: ${{ steps.typecheck.outcome }}
+          TEST_OUTCOME: ${{ steps.test.outcome }}
+          PACKAGE_OUTCOME: ${{ steps.package.outcome }}
         run: |
+          status_icon() {
+            if [ "$1" = "success" ]; then
+              printf '✅'
+            else
+              printf '❌'
+            fi
+          }
+
+          trim_log() {
+            local file="$1"
+            if [ -f "$file" ]; then
+              tail -n 40 "$file" | sed 's/\r$//'
+            else
+              echo "No output captured."
+            fi
+          }
+
+          if [ "$LINT_OUTCOME" = "success" ] && \
+             [ "$TYPECHECK_OUTCOME" = "success" ] && \
+             [ "$TEST_OUTCOME" = "success" ] && \
+             [ "$PACKAGE_OUTCOME" = "success" ]; then
+            OVERALL_ICON="✅"
+            OVERALL_TEXT="CI passed"
+          else
+            OVERALL_ICON="❌"
+            OVERALL_TEXT="CI failed"
+          fi
+
           {
-            echo "### ✅ CI passed"
+            echo "### ${OVERALL_ICON} ${OVERALL_TEXT}"
+            echo
+            echo "- Lint: \`$(status_icon "$LINT_OUTCOME") ${LINT_OUTCOME}\`"
+            echo "- Typecheck: \`$(status_icon "$TYPECHECK_OUTCOME") ${TYPECHECK_OUTCOME}\`"
+            echo "- Tests: \`$(status_icon "$TEST_OUTCOME") ${TEST_OUTCOME}\`"
+            echo "- VSIX smoke test: \`$(status_icon "$PACKAGE_OUTCOME") ${PACKAGE_OUTCOME}\`"
             echo
             echo "Workflow run: [\`${GITHUB_RUN_ID}\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})"
+            echo
+            echo "<details><summary>Lint output</summary>"
+            echo
+            echo '```text'
+            trim_log lint.log
+            echo '```'
+            echo "</details>"
+            echo
+            echo "<details><summary>Typecheck output</summary>"
+            echo
+            echo '```text'
+            trim_log typecheck.log
+            echo '```'
+            echo "</details>"
+            echo
+            echo "<details><summary>Test output</summary>"
+            echo
+            echo '```text'
+            trim_log test.log
+            echo '```'
+            echo "</details>"
+            echo
+            echo "<details><summary>VSIX smoke test output</summary>"
+            echo
+            echo '```text'
+            trim_log package.log
+            echo '```'
+            echo "</details>"
           } > comment.md
 
       - name: Post PR comment
@@ -51,7 +136,7 @@ jobs:
           path: comment.md
 
       - name: Approve PR on success
-        if: github.event_name == 'pull_request'
+        if: ${{ github.event_name == 'pull_request' && steps.lint.outcome == 'success' && steps.typecheck.outcome == 'success' && steps.test.outcome == 'success' && steps.package.outcome == 'success' }}
         env:
           GH_TOKEN: ${{ steps.bot-token.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -61,3 +146,7 @@ jobs:
             --repo "$REPO" \
             --approve \
             --body "Automated approval — CI validation passed."
+
+      - name: Fail workflow if validation failed
+        if: ${{ steps.lint.outcome != 'success' || steps.typecheck.outcome != 'success' || steps.test.outcome != 'success' || steps.package.outcome != 'success' }}
+        run: exit 1
