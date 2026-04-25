@@ -5,11 +5,16 @@ import { PRESETS, RunnerPreset, detectRunner } from './presets';
 import { Logger } from '../util/logger';
 import { mergeGoCoverProfiles } from './mergeProfiles';
 
+interface ResolvedRunner {
+  runnerKey: string;
+  preset: RunnerPreset | null;
+  customCmd: string;
+}
+
 export class TestRunner {
   private activeProc: cp.ChildProcess | null = null;
   private _running = false;
 
-  /** Fires when running state changes (true = started, false = finished) */
   private readonly _onRunningChanged = new vscode.EventEmitter<boolean>();
   readonly onRunningChanged = this._onRunningChanged.event;
 
@@ -44,9 +49,14 @@ export class TestRunner {
   async run(): Promise<void> {
     this.setRunning(true);
     try {
-      const command = this.resolveCommand();
-      if (!command) return;
-      await this.execute(command);
+      const resolved = await this.resolveRunner();
+      if (resolved.runnerKey === 'custom' && resolved.customCmd) {
+        if (!this.assertTrustedForCustomCommand()) return;
+        await this.execShell(resolved.customCmd);
+        return;
+      }
+      if (!resolved.preset) return;
+      await this.execArgv(resolved.preset.argv);
     } finally {
       this.setRunning(false);
     }
@@ -56,38 +66,35 @@ export class TestRunner {
   async runScoped(filePath: string): Promise<void> {
     this.setRunning(true);
     try {
-      const { runnerKey, preset, customCmd } = this.resolveRunner();
+      const { runnerKey, preset, customCmd } = await this.resolveRunner();
 
-      // Custom command — always full run
       if (runnerKey === 'custom' && customCmd) {
-        await this.execute(customCmd);
+        if (!this.assertTrustedForCustomCommand()) return;
+        await this.execShell(customCmd);
         return;
       }
 
       if (!preset) return;
 
-      // If preset has no scoped command, fall back to full run
-      if (!preset.scopedCommand) {
-        await this.execute(preset.command);
+      if (!preset.scoped) {
+        await this.execArgv(preset.argv);
         return;
       }
 
-      // Compute relative directory of the changed file
       const relDir = path.relative(this.workspaceRoot, path.dirname(filePath));
       if (!relDir || relDir.startsWith('..')) {
-        await this.execute(preset.command);
+        await this.execArgv(preset.argv);
         return;
       }
 
-      const scopedCmd = preset.scopedCommand(relDir);
+      const scoped = preset.scoped(relDir);
       this.log.info(`Scoped run for package: ${relDir}`);
       try {
-        await this.execute(scopedCmd);
+        await this.execArgv(scoped.argv);
       } catch {
         // Tests may fail but still produce coverage data — continue to merge
       }
 
-      // Merge partial coverage into main file if needed
       if (preset.scopedOutput) {
         await this.mergeScoped(preset);
       }
@@ -116,13 +123,13 @@ export class TestRunner {
     }
   }
 
-  private resolveRunner(): { runnerKey: string; preset: RunnerPreset | null; customCmd: string } {
+  private async resolveRunner(): Promise<ResolvedRunner> {
     const cfg = vscode.workspace.getConfiguration('coverlens');
     let runnerKey = cfg.get<string>('testRunner.mode', 'auto');
     const customCmd = cfg.get<string>('testRunner.customCommand', '');
 
     if (runnerKey === 'auto') {
-      runnerKey = detectRunner(this.workspaceRoot);
+      runnerKey = await detectRunner(this.workspaceRoot);
       this.log.info(`Auto-detected runner: ${runnerKey}`);
     }
 
@@ -139,38 +146,77 @@ export class TestRunner {
     return { runnerKey, preset, customCmd: '' };
   }
 
-  private resolveCommand(): string | null {
-    const { runnerKey, preset, customCmd } = this.resolveRunner();
-    if (runnerKey === 'custom' && customCmd) return customCmd;
-    return preset?.command ?? null;
+  /** Workspace Trust gate: refuse to execute user-provided shell strings in untrusted workspaces. */
+  private assertTrustedForCustomCommand(): boolean {
+    if (vscode.workspace.isTrusted) return true;
+    this.log.warn('CoverLens: refusing to run testRunner.customCommand in an untrusted workspace.');
+    vscode.window.showWarningMessage(
+      'CoverLens: custom test commands are disabled in untrusted workspaces. Trust this workspace to enable.'
+    );
+    return false;
   }
 
-  private async execute(command: string): Promise<void> {
-    this.log.info(`Running: ${command}`);
-    await this.exec(command);
+  /** Run a vetted argv array — safe from shell injection because args are passed individually. */
+  private execArgv(argv: string[]): Promise<void> {
+    const [file, ...args] = argv;
+    this.log.info(`Running: ${argv.join(' ')}`);
+    return this.spawnAndWait(file, args, { shell: false });
   }
 
-  private exec(command: string): Promise<void> {
+  /** Run a user-provided shell string (gated by Workspace Trust). */
+  private execShell(command: string): Promise<void> {
+    this.log.info(`Running (shell): ${command}`);
+    return this.spawnAndWait(command, [], { shell: true });
+  }
+
+  private spawnAndWait(file: string, args: string[], opts: { shell: boolean }): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      const timeout = 10 * 60 * 1000; // 10 minutes
-      const proc = cp.exec(command, { cwd: this.workspaceRoot, maxBuffer: 50 * 1024 * 1024, timeout }, (err, stdout, stderr) => {
-        if (this.activeProc === proc) this.activeProc = null;
+      const timeoutMs = 10 * 60 * 1000;
+      const proc = cp.spawn(file, args, {
+        cwd: this.workspaceRoot,
+        shell: opts.shell,
+        windowsHide: true
+      });
+      this.activeProc = proc;
 
-        if (err) {
-          if ((err as any).killed || err.message === 'Cancelled') {
-            this.log.info('Test run aborted.');
-            resolve();
-            return;
-          }
-          this.log.error(stderr || err.message);
-          reject(err);
-        } else {
-          this.log.info('Tests completed.');
-          resolve();
+      let stderrBuf = '';
+      const STDERR_LIMIT = 256 * 1024;
+      proc.stderr?.on('data', (chunk: Buffer) => {
+        if (stderrBuf.length < STDERR_LIMIT) {
+          stderrBuf += chunk.toString();
+          if (stderrBuf.length > STDERR_LIMIT) stderrBuf = stderrBuf.slice(0, STDERR_LIMIT);
         }
       });
+      proc.stdout?.resume();
 
-      this.activeProc = proc;
+      const killTimer = setTimeout(() => {
+        try { proc.kill('SIGTERM'); } catch { /* ignore */ }
+      }, timeoutMs);
+
+      proc.once('error', (err) => {
+        clearTimeout(killTimer);
+        if (this.activeProc === proc) this.activeProc = null;
+        this.log.error(err.message);
+        reject(err);
+      });
+
+      proc.once('close', (code, signal) => {
+        clearTimeout(killTimer);
+        if (this.activeProc === proc) this.activeProc = null;
+
+        if (signal) {
+          this.log.info(`Test run terminated by signal ${signal}.`);
+          resolve();
+          return;
+        }
+        if (code === 0) {
+          this.log.info('Tests completed.');
+          resolve();
+        } else {
+          if (stderrBuf) this.log.error(stderrBuf.trim());
+          reject(new Error(`Test process exited with code ${code}`));
+        }
+      });
     });
   }
 

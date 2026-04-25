@@ -2,7 +2,7 @@
   "name": "coverlens",
   "displayName": "CoverLens",
   "description": "Three-state coverage lens with diff mode and monorepo support",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "publisher": "fogio",
   "icon": "assets/icon.png",
   "engines": {
@@ -32,6 +32,12 @@
     "onStartupFinished"
   ],
   "main": "./dist/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Custom test commands (`coverlens.testRunner.customCommand`) are disabled in untrusted workspaces because they execute arbitrary shell code from workspace settings."
+    }
+  },
   "contributes": {
     "commands": [
       {
@@ -171,8 +177,12 @@
             "border",
             "highlight"
           ],
+          "enumDescriptions": [
+            "Vertical bar on the left edge of the line",
+            "Vertical bar plus a tinted background fill across the line"
+          ],
           "default": "border",
-          "description": "How to show coverage: 'border' = vertical bar on the left edge, 'highlight' = vertical bar + background fill"
+          "description": "How to render coverage on covered/partial/uncovered lines"
         },
         "coverlens.overviewRuler": {
           "type": "boolean",
@@ -182,14 +192,25 @@
         "coverlens.onEdit": {
           "type": "string",
           "enum": ["hide", "dim", "keep"],
+          "enumDescriptions": [
+            "Remove decorations once the file is dirty",
+            "Show decorations faded while the file is dirty",
+            "Leave decorations untouched while editing"
+          ],
           "default": "dim",
-          "description": "What to do with coverage when a file is edited: 'hide' = remove decorations, 'dim' = show faded, 'keep' = do nothing"
+          "description": "What to do with coverage decorations when a file is edited"
         },
         "coverlens.runOnSave": {
           "type": "string",
           "enum": ["off", "package", "all"],
+          "enumDescriptions": [
+            "Do not run tests on save",
+            "Run only the package/directory containing the saved file",
+            "Run the full test suite on every save"
+          ],
           "default": "package",
-          "description": "Auto-run tests on save: 'off' = disabled, 'package' = only affected package, 'all' = full test suite"
+          "scope": "resource",
+          "description": "Auto-run tests when a workspace file is saved (only triggers for files inside the workspace and outside excludePatterns)"
         },
         "coverlens.diffMode": {
           "type": "boolean",
@@ -223,13 +244,25 @@
             "dotnet",
             "custom"
           ],
+          "enumDescriptions": [
+            "Detect the runner from project files (go.mod, Cargo.toml, *.csproj/*.sln, pyproject.toml, vitest.config.*, jest.config.*, package.json)",
+            "Jest — `npx jest --coverage --coverageReporters=lcov`",
+            "Vitest — `npx vitest run --coverage --coverage.reporter=lcov`",
+            "pytest — `python -m pytest --cov=. --cov-report=lcov:lcov.info`",
+            "Go — `go test ./... -coverprofile=coverage.out`",
+            "Cargo (tarpaulin) — `cargo tarpaulin --out Lcov --output-dir .`",
+            ".NET (coverlet) — `dotnet test /p:CollectCoverage=true ...`",
+            "Run the shell command from `coverlens.testRunner.customCommand`"
+          ],
           "default": "auto",
+          "scope": "resource",
           "description": "Test runner for 'Run Tests with Coverage' command"
         },
         "coverlens.testRunner.customCommand": {
           "type": "string",
           "default": "",
-          "description": "Custom shell command to run tests with coverage (used when testRunner.mode = 'custom')"
+          "scope": "resource",
+          "markdownDescription": "Shell command to run tests when `#coverlens.testRunner.mode#` is `custom`. **Security:** this value is executed verbatim by your shell. Disabled in untrusted workspaces."
         },
         "coverlens.monorepo.enabled": {
           "type": "boolean",
