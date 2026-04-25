@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.1
+
+### Bug Fixes
+
+- **Fixed `coverlens.testRunner.customCommand` being ignored** ([#4](https://github.com/fogio-org/vscode-coverlens/issues/4)) — VSCode rejected the nested setting because `coverlens.testRunner` was declared as a string, causing a schema conflict. Renamed `coverlens.testRunner` to `coverlens.testRunner.mode` so both settings live under the same namespace.
+
+### Breaking Changes
+
+- `coverlens.testRunner` setting renamed to `coverlens.testRunner.mode` — update your `settings.json` if you set the runner explicitly.
+
 ## 1.0.0
 
 - Update extension logo
