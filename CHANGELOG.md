@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.0.2
+
+### Security
+
+- **Workspace Trust** — `coverlens.testRunner.customCommand` is no longer executed in untrusted workspaces. Opening a repository with a malicious `.vscode/settings.json` will not run arbitrary shell code anymore. Declared via the standard `capabilities.untrustedWorkspaces` manifest field.
+- **No more shell injection through scoped runs** — built-in presets (Jest/Vitest/pytest/Go) now spawn the runner with an argv array instead of formatting paths into a shell string. A directory whose name contains shell metacharacters can no longer cause command injection during `runOnSave: "package"`.
+
+### Bug Fixes
+
+- **Fixed `.sln` auto-detection never matching** — `detectRunner` was calling `fs.existsSync` with a literal `*.sln` glob. Replaced with a proper directory scan, so .NET projects without a `.csproj` next to the workspace root now resolve to the `dotnet` runner.
+- **`runOnSave` no longer triggers for unrelated files** — saves are now filtered by URI scheme (`file:` only), workspace membership and `coverlens.excludePatterns`. Saving a `README.md`, a file in `node_modules`, or a document in another workspace folder no longer kicks off a test run.
+- **Initial test run no longer swallows errors silently** — the fire-and-forget `runFullTests()` on activation now logs failures via the CoverLens output channel.
+
+### Improvements
+
+- **Async runner detection with per-workspace cache** — `detectRunner` switched from `fs.*Sync` to `fs.promises.*` and caches its result, removing a synchronous I/O burst from extension activation and from every test run.
+- **`enumDescriptions` for enum settings** — VSCode's settings UI now shows per-value documentation for `coverlens.testRunner.mode`, `coverlens.runOnSave`, `coverlens.onEdit` and `coverlens.decorationStyle`.
+- **`scope: "resource"` on runner settings** — `coverlens.testRunner.mode`, `coverlens.testRunner.customCommand` and `coverlens.runOnSave` can now be overridden per workspace folder, which matters in monorepos where different packages use different runners.
+- **Better test process supervision** — switched from `child_process.exec` to `child_process.spawn`, removing the 50 MB stdout buffer cap and streaming stderr into the log only on non-zero exits.
+
 ## 1.0.1
 
 ### Bug Fixes

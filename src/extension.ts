@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { loadCoverage } from './coverage/loader';
 import { CoverageDecorator } from './decorations/decorator';
 import { CoverageTreeProvider } from './panel/coverageTree';
@@ -227,6 +228,8 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
     vscode.workspace.onDidSaveTextDocument((doc) => {
       const mode = cfg().get<string>('runOnSave', 'package');
       if (mode === 'off' || mode === 'false' || !mode) return;
+      if (!shouldTriggerOnSave(doc, workspaceRoot, cfg().get<string[]>('excludePatterns', []))) return;
+
       const filePath = doc.uri.fsPath;
       if (runOnSaveTimeout) clearTimeout(runOnSaveTimeout);
       runOnSaveTimeout = setTimeout(async () => {
@@ -269,7 +272,7 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
     await reload();
     // Then run full test suite if runOnSave is enabled
     if (cfg().get<string>('runOnSave', 'package') !== 'off') {
-      runFullTests(); // fire-and-forget — don't block activation
+      runFullTests().catch(err => log.error(`Initial test run failed: ${err}`));
     }
   }
 
@@ -277,3 +280,32 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
 }
 
 export function deactivate(): void {}
+
+/** Filter out saves that shouldn't trigger a test run (non-file URIs, files outside workspace, ignored paths). */
+function shouldTriggerOnSave(doc: vscode.TextDocument, workspaceRoot: string, excludePatterns: string[]): boolean {
+  if (doc.uri.scheme !== 'file') return false;
+
+  const filePath = doc.uri.fsPath;
+  const rel = path.relative(workspaceRoot, filePath);
+  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return false;
+
+  const relPosix = rel.split(path.sep).join('/');
+  for (const pattern of excludePatterns) {
+    if (matchesGlob(relPosix, pattern)) return false;
+  }
+  return true;
+}
+
+function matchesGlob(relPath: string, glob: string): boolean {
+  let re = glob.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+  re = re.replace(/\*\*\//g, '(?:.*/)?');
+  re = re.replace(/\/\*\*/g, '(?:/.*)?');
+  re = re.replace(/\*\*/g, '.*');
+  re = re.replace(/\*/g, '[^/]*');
+  re = re.replace(/\?/g, '[^/]');
+  try {
+    return new RegExp(`^${re}$`).test(relPath);
+  } catch {
+    return false;
+  }
+}
