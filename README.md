@@ -156,7 +156,7 @@ Coverage from all packages is aggregated into one unified view. Configure manual
 | `coverlens.colors.uncovered` | — | Custom color for uncovered lines |
 | `coverlens.diffMode` | `false` | Show coverage only for changed lines |
 | `coverlens.diffBase` | `"HEAD"` | Git ref for diff mode comparison |
-| `coverlens.testRunner` | `"auto"` | Test runner: `auto`, `jest`, `vitest`, `pytest`, `go`, `cargo`, `dotnet`, `custom` |
+| `coverlens.testRunner.mode` | `"auto"` | Test runner: `auto`, `jest`, `vitest`, `pytest`, `go`, `cargo`, `dotnet`, `custom` |
 | `coverlens.testRunner.customCommand` | — | Custom shell command for test runner |
 | `coverlens.monorepo.enabled` | `true` | Auto-detect monorepo packages |
 | `coverlens.monorepo.packages` | `[]` | Manual package glob patterns |

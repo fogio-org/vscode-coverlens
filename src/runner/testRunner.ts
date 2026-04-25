@@ -118,7 +118,7 @@ export class TestRunner {
 
   private resolveRunner(): { runnerKey: string; preset: RunnerPreset | null; customCmd: string } {
     const cfg = vscode.workspace.getConfiguration('coverlens');
-    let runnerKey = cfg.get<string>('testRunner', 'auto');
+    let runnerKey = cfg.get<string>('testRunner.mode', 'auto');
     const customCmd = cfg.get<string>('testRunner.customCommand', '');
 
     if (runnerKey === 'auto') {

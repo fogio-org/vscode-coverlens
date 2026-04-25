@@ -2,7 +2,7 @@
   "name": "coverlens",
   "displayName": "CoverLens",
   "description": "Three-state coverage lens with diff mode and monorepo support",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "fogio",
   "icon": "assets/icon.png",
   "engines": {
@@ -211,7 +211,7 @@
           "default": 80,
           "description": "Coverage % below which the file is marked yellow in the tree"
         },
-        "coverlens.testRunner": {
+        "coverlens.testRunner.mode": {
           "type": "string",
           "enum": [
             "auto",
@@ -229,7 +229,7 @@
         "coverlens.testRunner.customCommand": {
           "type": "string",
           "default": "",
-          "description": "Custom shell command to run tests with coverage (used when testRunner = 'custom')"
+          "description": "Custom shell command to run tests with coverage (used when testRunner.mode = 'custom')"
         },
         "coverlens.monorepo.enabled": {
           "type": "boolean",
