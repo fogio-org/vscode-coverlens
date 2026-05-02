@@ -49,13 +49,19 @@ export async function loadCoverage(
   globs: string[],
   excludePatterns: string[],
   workspaceRoot: string,
-  log: Logger
+  log: Logger,
+  skipPaths?: Set<string>
 ): Promise<LoadResult> {
-  const files = await fg.glob(globs, {
+  const matched = await fg.glob(globs, {
     cwd: workspaceRoot,
     absolute: true,
     ignore: excludePatterns
   });
+
+  // Overlapping glob patterns (e.g. **/lcov.info and **/coverage/lcov.info)
+  // can match the same file; skipPaths lets the caller dedupe across multiple
+  // workspaceRoots in monorepo mode.
+  const files = [...new Set(matched)].filter(f => !skipPaths?.has(f));
 
   log.info(`CoverLens: found ${files.length} coverage file(s)`);
 
