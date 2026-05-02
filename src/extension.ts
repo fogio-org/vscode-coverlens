@@ -69,10 +69,12 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
 
       const merged: CoverageMap = new Map();
       const allCoverageFiles: string[] = [];
+      const seen = new Set<string>();
       for (const pkg of packages) {
         try {
-          const result = await loadCoverage(globs, exclude, pkg, log);
+          const result = await loadCoverage(globs, exclude, pkg, log, seen);
           for (const [k, v] of result.map) merged.set(k, v);
+          for (const f of result.coverageFiles) seen.add(f);
           allCoverageFiles.push(...result.coverageFiles);
         } catch (err) {
           log.warn(`Failed to load coverage for ${pkg}: ${err}`);

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.3
+
+### Bug Fixes
+
+- **No more double-parsing of coverage files in monorepos** ([#7](https://github.com/fogio-org/vscode-coverlens/issues/7)) — when multiple package roots overlapped (e.g. workspace root + a detected sub-package), the same `lcov.info` was discovered and parsed once per root, inflating the `found N coverage file(s)` log and the list passed to `ensureCoverageInGitignore`. `loadCoverage` now accepts a shared `skipPaths` set, and `reload()` threads one across all package iterations so each absolute path is parsed at most once. Also added an explicit `Set` dedup right after `fast-glob` returns, making the "overlapping globs do not duplicate" invariant visible at the call site rather than relying on `fast-glob`'s implicit `unique: true` default.
+
 ## 1.0.2
 
 ### Security
