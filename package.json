@@ -2,11 +2,11 @@
   "name": "coverlens",
   "displayName": "CoverLens",
   "description": "Three-state coverage lens with diff mode and monorepo support",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "publisher": "fogio",
   "icon": "assets/icon.png",
   "engines": {
-    "vscode": "^1.110.0"
+    "vscode": "^1.96.0"
   },
   "license": "MIT",
   "repository": {
@@ -191,7 +191,11 @@
         },
         "coverlens.onEdit": {
           "type": "string",
-          "enum": ["hide", "dim", "keep"],
+          "enum": [
+            "hide",
+            "dim",
+            "keep"
+          ],
           "enumDescriptions": [
             "Remove decorations once the file is dirty",
             "Show decorations faded while the file is dirty",
@@ -202,7 +206,11 @@
         },
         "coverlens.runOnSave": {
           "type": "string",
-          "enum": ["off", "package", "all"],
+          "enum": [
+            "off",
+            "package",
+            "all"
+          ],
           "enumDescriptions": [
             "Do not run tests on save",
             "Run only the package/directory containing the saved file",
@@ -301,7 +309,7 @@
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "@types/node": "^25.5.0",
-    "@types/vscode": "^1.110.0",
+    "@types/vscode": "1.96.0",
     "@types/xml2js": "^0.4.14",
     "@typescript-eslint/eslint-plugin": "^8.58.0",
     "@typescript-eslint/parser": "^8.58.0",
