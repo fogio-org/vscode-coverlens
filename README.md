@@ -25,7 +25,7 @@
 - **No gutter conflicts** — uses line decorations instead of gutter icons, so coverage display never interferes with debugger breakpoints
 - **Diff mode** — show coverage only on lines changed vs a base branch
 - **Built-in test runner** — run tests with coverage in one click; scoped runs for changed packages
-- **Smart auto-run** — on save, runs tests only for the affected package (Go, Jest, Vitest, pytest)
+- **Smart auto-run** — on save, runs tests only for the affected package (Go, Jest, Vitest, pytest, Dart, Flutter)
 - **Coverage delta** — shows coverage change vs session start or vs base branch in diff mode
 - **Stale coverage** — dims or hides decorations while tests run or after edits
 - **Monorepo support** — auto-detects pnpm/npm/yarn workspaces, aggregates coverage
@@ -42,6 +42,8 @@
 | Go | go test | Go coverage profile |
 | Rust | cargo-tarpaulin | LCOV |
 | C# / .NET | dotnet test + Coverlet | LCOV, Cobertura XML |
+| Dart | dart test | LCOV |
+| Flutter | flutter test | LCOV |
 | Java / Kotlin | Gradle, Maven | JaCoCo XML |
 
 Auto-detects format by file content — works with any tool that outputs a supported format.
@@ -69,6 +71,13 @@ cargo tarpaulin --out Lcov
 
 # .NET
 dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
+
+# Dart (requires the `coverage` dev_dependency)
+dart test --coverage=coverage
+dart run coverage:format_coverage --lcov --in=coverage --out=coverage/lcov.info --report-on=lib --package=.
+
+# Flutter
+flutter test --coverage
 ```
 
 3. **Open a source file** — coverage appears automatically
@@ -156,7 +165,7 @@ Coverage from all packages is aggregated into one unified view. Configure manual
 | `coverlens.colors.uncovered` | — | Custom color for uncovered lines |
 | `coverlens.diffMode` | `false` | Show coverage only for changed lines |
 | `coverlens.diffBase` | `"HEAD"` | Git ref for diff mode comparison |
-| `coverlens.testRunner.mode` | `"auto"` | Test runner: `auto`, `jest`, `vitest`, `pytest`, `go`, `cargo`, `dotnet`, `custom` |
+| `coverlens.testRunner.mode` | `"auto"` | Test runner: `auto`, `jest`, `vitest`, `pytest`, `go`, `cargo`, `dotnet`, `dart`, `flutter`, `custom` |
 | `coverlens.testRunner.customCommand` | — | Custom shell command for test runner |
 | `coverlens.monorepo.enabled` | `true` | Auto-detect monorepo packages |
 | `coverlens.monorepo.packages` | `[]` | Manual package glob patterns |
@@ -169,7 +178,7 @@ Coverage from all packages is aggregated into one unified view. Configure manual
 CoverLens searches for these files automatically:
 
 ```
-**/lcov.info                    LCOV (Jest, Vitest, pytest, tarpaulin, Coverlet)
+**/lcov.info                    LCOV (Jest, Vitest, pytest, Dart, Flutter, tarpaulin, Coverlet)
 **/coverage.lcov                LCOV (alternative name)
 **/coverage.xml                 Cobertura XML (coverage.py, Coverlet)
 **/coverage.cobertura.xml       Cobertura XML (.NET)
