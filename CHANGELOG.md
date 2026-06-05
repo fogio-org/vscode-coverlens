@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.4
+
+### Improvements
+
+- **Wider editor compatibility** ([#10](https://github.com/fogio-org/vscode-coverlens/issues/10)) — lowered the required `engines.vscode` from `^1.110.0` to `^1.96.0` and pinned `@types/vscode` to `1.96.0`. The extension only uses VS Code APIs available since 1.56 (`workspace.isTrusted` is the newest), so the higher floor was excluding editors that ship an older extension host. CoverLens now installs without an engine-compatibility warning in Cursor, Windsurf, VSCodium and other 1.96+ hosts. The pinned `@types/vscode` makes the compiler enforce the floor, so a newer API can no longer slip in unnoticed.
+
 ## 1.0.3
 
 ### Bug Fixes
