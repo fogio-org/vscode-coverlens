@@ -45,7 +45,7 @@ jobs:
           path: theme.vsix
 
       - name: Generate fogio-ci bot token
-        if: github.event_name == 'pull_request'
+        if: github.event.pull_request.head.repo.full_name == github.repository
         id: bot-token
         uses: actions/create-github-app-token@v1
         with:
@@ -53,7 +53,7 @@ jobs:
           private-key: ${{ secrets.FOGIO_BOT_PRIVATE_KEY }}
 
       - name: Prepare PR comment body
-        if: github.event_name == 'pull_request'
+        if: github.event.pull_request.head.repo.full_name == github.repository
         env:
           LINT_OUTCOME: ${{ steps.lint.outcome }}
           TYPECHECK_OUTCOME: ${{ steps.typecheck.outcome }}
@@ -128,7 +128,7 @@ jobs:
           } > comment.md
 
       - name: Post PR comment
-        if: github.event_name == 'pull_request'
+        if: github.event.pull_request.head.repo.full_name == github.repository
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           GITHUB_TOKEN: ${{ steps.bot-token.outputs.token }}
@@ -136,7 +136,7 @@ jobs:
           path: comment.md
 
       - name: Approve PR on success
-        if: ${{ github.event_name == 'pull_request' && steps.lint.outcome == 'success' && steps.typecheck.outcome == 'success' && steps.test.outcome == 'success' && steps.package.outcome == 'success' }}
+        if: ${{ github.event.pull_request.head.repo.full_name == github.repository && steps.lint.outcome == 'success' && steps.typecheck.outcome == 'success' && steps.test.outcome == 'success' && steps.package.outcome == 'success' }}
         env:
           GH_TOKEN: ${{ steps.bot-token.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
