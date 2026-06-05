@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### New Features
+
+- **Dart & Flutter test runners** ([#9](https://github.com/fogio-org/vscode-coverlens/issues/9)) — `coverlens.testRunner.mode` now accepts `dart` and `flutter`, and auto-detection recognises `pubspec.yaml` (Flutter when the project depends on the Flutter SDK, plain Dart otherwise). `flutter test --coverage` emits `coverage/lcov.info` directly; Dart runs `dart test --coverage=coverage` followed by `coverage:format_coverage` (using the non-deprecated `--package`/`--report-on` flags) to produce LCOV. On-save scoped runs target the package's `test/` directory.
+
 ## 1.0.4
 
 ### Improvements

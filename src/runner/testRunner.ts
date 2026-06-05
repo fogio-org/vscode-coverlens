@@ -57,6 +57,7 @@ export class TestRunner {
       }
       if (!resolved.preset) return;
       await this.execArgv(resolved.preset.argv);
+      await this.execFollowUp(resolved.preset.followUpArgv);
     } finally {
       this.setRunning(false);
     }
@@ -91,6 +92,7 @@ export class TestRunner {
       this.log.info(`Scoped run for package: ${relDir}`);
       try {
         await this.execArgv(scoped.argv);
+        await this.execFollowUp(scoped.followUpArgv ?? preset.followUpArgv);
       } catch {
         // Tests may fail but still produce coverage data — continue to merge
       }
@@ -107,6 +109,20 @@ export class TestRunner {
     if (this._running === running) return;
     this._running = running;
     this._onRunningChanged.fire(running);
+  }
+
+  /**
+   * Run an optional second command after a successful test run (e.g. Dart's
+   * `format_coverage`). A failure here must not fail the overall run — the test
+   * command already succeeded — so we log and continue.
+   */
+  private async execFollowUp(argv: string[] | undefined): Promise<void> {
+    if (!argv?.length) return;
+    try {
+      await this.execArgv(argv);
+    } catch (err) {
+      this.log.error(`Follow-up command failed: ${err}`);
+    }
   }
 
   private async mergeScoped(preset: RunnerPreset): Promise<void> {
