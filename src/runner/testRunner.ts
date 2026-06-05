@@ -56,7 +56,13 @@ export class TestRunner {
         return;
       }
       if (!resolved.preset) return;
-      await this.execArgv(resolved.preset.argv);
+      try {
+        await this.execArgv(resolved.preset.argv);
+      } catch (err) {
+        // Tests may fail but still produce coverage data — continue to the
+        // follow-up (e.g. Dart's format_coverage) so an LCOV file is still written.
+        this.log.error(`Test run failed: ${err}`);
+      }
       await this.execFollowUp(resolved.preset.followUpArgv);
     } finally {
       this.setRunning(false);
