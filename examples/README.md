@@ -8,7 +8,7 @@ Use the launch configurations in the root `.vscode/launch.json`:
 
 1. **Run Extension (JS Example)** — opens `js-jest/` folder with pre-generated coverage
 2. **Run Extension (Go Example)** — opens `go/` folder with pre-generated coverage
-3. **Run Extension (All Examples)** — opens multi-root workspace with all 7 examples
+3. **Run Extension (All Examples)** — opens multi-root workspace with all 8 examples
 
 Or manually: press F5 with "Run Extension", then in the Extension Development Host open any example folder.
 
@@ -20,6 +20,7 @@ Or manually: press F5 with "Run Extension", then in the Extension Development Ho
 | `ts-vitest/` | TypeScript | LCOV | `coverage/lcov.info` |
 | `python-pytest/` | Python | LCOV | `lcov.info` |
 | `go/` | Go | Go profile | `coverage.out` |
+| `dart/` | Dart | LCOV | `coverage/lcov.info` |
 | `rust-cargo/` | Rust | LCOV | `lcov.info` |
 | `dotnet/` | C# | LCOV + Cobertura | `lcov.info`, `coverage.cobertura.xml` |
 | `java-jacoco/` | Java | JaCoCo XML | `jacoco.xml` |
@@ -48,6 +49,10 @@ cd python-pytest && python -m pytest --cov=. --cov-report=lcov:lcov.info
 
 # Go
 cd go && go test ./... -coverprofile=coverage.out
+
+# Dart (line-level coverage; pass --branch-coverage to dart test + format_coverage for partial/yellow)
+cd dart && dart test --coverage=coverage && \
+  dart run coverage:format_coverage --lcov --in=coverage --out=coverage/lcov.info --report-on=lib --package=.
 
 # Rust
 cd rust-cargo && cargo tarpaulin --out Lcov --output-dir .

@@ -2,7 +2,7 @@
   "name": "coverlens",
   "displayName": "CoverLens",
   "description": "Three-state coverage lens with diff mode and monorepo support",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "publisher": "fogio",
   "icon": "assets/icon.png",
   "engines": {
@@ -250,16 +250,20 @@
             "go",
             "cargo",
             "dotnet",
+            "dart",
+            "flutter",
             "custom"
           ],
           "enumDescriptions": [
-            "Detect the runner from project files (go.mod, Cargo.toml, *.csproj/*.sln, pyproject.toml, vitest.config.*, jest.config.*, package.json)",
+            "Detect the runner from project files (pubspec.yaml, go.mod, Cargo.toml, *.csproj/*.sln, pyproject.toml, vitest.config.*, jest.config.*, package.json)",
             "Jest — `npx jest --coverage --coverageReporters=lcov`",
             "Vitest — `npx vitest run --coverage --coverage.reporter=lcov`",
             "pytest — `python -m pytest --cov=. --cov-report=lcov:lcov.info`",
             "Go — `go test ./... -coverprofile=coverage.out`",
             "Cargo (tarpaulin) — `cargo tarpaulin --out Lcov --output-dir .`",
             ".NET (coverlet) — `dotnet test /p:CollectCoverage=true ...`",
+            "Dart — `dart test --coverage=coverage` + format to LCOV",
+            "Flutter — `flutter test --coverage`",
             "Run the shell command from `coverlens.testRunner.customCommand`"
           ],
           "default": "auto",

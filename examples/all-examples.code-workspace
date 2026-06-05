@@ -4,6 +4,7 @@
     { "path": "ts-vitest",      "name": "TS (Vitest)" },
     { "path": "python-pytest",  "name": "Python (pytest)" },
     { "path": "go",             "name": "Go" },
+    { "path": "dart",           "name": "Dart" },
     { "path": "rust-cargo",     "name": "Rust (Cargo)" },
     { "path": "dotnet",         "name": ".NET" },
     { "path": "java-jacoco",    "name": "Java (JaCoCo)" }

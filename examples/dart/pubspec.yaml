@@ -1,0 +1,10 @@
+name: coverlens_dart_example
+description: Sample Dart package for verifying CoverLens coverage visualization.
+publish_to: none
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dev_dependencies:
+  test: ^1.25.0
+  coverage: ^1.11.0
